@@ -1,5 +1,3 @@
-// TEMP storage (replace with DB later)
-const purchases = [];
 require("dotenv").config();
 
 const express = require("express");
@@ -10,7 +8,14 @@ const path = require("path");
 
 const app = express();
 
-// CORS (Allow GitHub frontend)
+// =========================
+// TEMP STORAGE (replace with DB later)
+// =========================
+const purchases = [];
+
+// =========================
+// MIDDLEWARE
+// =========================
 app.use(cors({
   origin: "https://legal-addict.github.io",
   methods: ["GET", "POST"],
@@ -19,14 +24,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ Serve notes folder publicly
-app.use("/notes", express.static(path.join(__dirname, "notes")));
-
+// =========================
+// BASIC ROUTE
+// =========================
 app.get("/", (req, res) => {
-  res.send("Backend running");
+  res.send("Backend running ✅");
 });
 
-// Razorpay instance
+// =========================
+// RAZORPAY SETUP
+// =========================
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -61,7 +68,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT
+// VERIFY PAYMENT + SAVE PURCHASE
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
@@ -70,23 +77,7 @@ app.post("/verify-payment", (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       noteName,
-    } = req.body;
-
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
-
-    if (expectedSignature === razorpay_signature) app.post("/verify-payment", (req, res) => {
-  try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      noteName,
-      userId // 👈 MUST come from frontend
+      userId
     } = req.body;
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -98,15 +89,18 @@ app.post("/verify-payment", (req, res) => {
 
     if (expectedSignature === razorpay_signature) {
 
-      // ✅ SAVE PURCHASE
-      purchases.push({
-        userId,
-        noteName
-      });
+      // ✅ SAVE PURCHASE (avoid duplicate)
+      const alreadyBought = purchases.find(
+        (p) => p.userId === userId && p.noteName === noteName
+      );
+
+      if (!alreadyBought) {
+        purchases.push({ userId, noteName });
+      }
 
       return res.json({
         success: true,
-        url: `/notes/${noteName}.html`,
+        url: `/notes/${noteName}.html?userId=${userId}`
       });
 
     } else {
@@ -118,6 +112,43 @@ app.post("/verify-payment", (req, res) => {
     res.status(500).json({ success: false });
   }
 });
+
+// =========================
+// CHECK PURCHASE (optional)
+// =========================
+app.get("/check-purchase", (req, res) => {
+  const { userId, noteName } = req.query;
+
+  const found = purchases.find(
+    (p) => p.userId === userId && p.noteName === noteName
+  );
+
+  res.json({ purchased: !!found });
+});
+
+// =========================
+// SECURE NOTE ACCESS 🔐
+// =========================
+app.get("/notes/:name", (req, res) => {
+  const userId = req.query.userId;
+  const noteName = req.params.name;
+
+  const found = purchases.find(
+    (p) => p.userId === userId && p.noteName === noteName
+  );
+
+  if (found) {
+    return res.sendFile(
+      path.join(__dirname, "notes", noteName)
+    );
+  } else {
+    return res.status(403).send("❌ Please purchase this note");
+  }
+});
+
+// =========================
+// START SERVER
+// =========================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
