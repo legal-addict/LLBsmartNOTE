@@ -3,6 +3,7 @@ body {
   background: url(adv.jpg) no-repeat center/cover;
   background-attachment: fixed;
   color: rgba(255, 255, 255, 0.793); /* ✅ ALL TEXT WHITE */
+  font-size: 30px;
 }
 
 header {
