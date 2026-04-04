@@ -161,3 +161,9 @@ window.addEventListener("blur", () => {
 window.addEventListener("focus", () => {
   document.body.style.filter = "none";
 });
+document.addEventListener("contextmenu", event => event.preventDefault());
+document.addEventListener("keyup", (e) => {
+  if (e.key === "PrintScreen") {
+    alert("Screenshot is not allowed!");
+  }
+});
