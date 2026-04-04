@@ -167,3 +167,32 @@ document.addEventListener("keyup", (e) => {
     alert("Screenshot is not allowed!");
   }
 });
+// Disable context menu (right-click)
+document.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+    alert("Right-click is disabled on this site!");
+});
+/* Prevent text selection */
+body {
+    -webkit-user-select: none; /* Chrome/Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE/Edge */
+    user-select: none;         /* Standard */
+}
+  // Disable copy and cut
+document.addEventListener("copy", function(e){
+    e.preventDefault();
+    alert("Copying is disabled!");
+});
+
+document.addEventListener("cut", function(e){
+    e.preventDefault();
+    alert("Cutting is disabled!");
+});
+// Disable print shortcut (Ctrl+P / Cmd+P)
+document.addEventListener("keydown", function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        alert("Printing is disabled on this page!");
+    }
+});
