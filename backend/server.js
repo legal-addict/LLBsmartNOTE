@@ -154,3 +154,10 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
+window.addEventListener("blur", () => {
+  document.body.style.filter = "blur(10px)";
+});
+
+window.addEventListener("focus", () => {
+  document.body.style.filter = "none";
+});
