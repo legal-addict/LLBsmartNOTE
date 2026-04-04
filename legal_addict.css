@@ -1,51 +1,33 @@
- 
-    header{
-      text-align: center;
-      font-size: 60px;
-    }
-    body{
-      background-color: #cfeeee;
-    }
-    P{
-      padding-left: 200px;
-    }
-  button{
-    padding: 10px 20px;
-    border: 2px solid gray;
-    background-color: #b3f0e6;
-    cursor: pointer;
-    font-size: 16px;
-    display: inline-block;
-    gap: 20px;
-    margin-left: 190px;
-    margin-top:20px;
+body {
+  margin: 10;
+  background: url(adv.jpg) no-repeat center/cover;
+  background-attachment: fixed;
+  color: rgba(255, 255, 255, 0.793); /* ✅ ALL TEXT WHITE */
+}
+
+header {
+  text-align: center;
+  font-size: 40px;
+  padding: 20px;
+}
+
+/* Section titles */
+h1 {
+  text-align: center;
+  margin-top: 30px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  header {
+    font-size: 24px;
   }
-  @media only screen and (max-width :455px){
-    header{
-      text-align: center;
-      font-size: 30px;
-    }
-    body{
-      background-color: #cfeeee;
-    }
-    p{
-      font-size: 10px;
-      padding-left: 55px;
-    }
-  button{
-    padding: 2px 4px;
-    border: 0.5px solid gray;
-    background-color: #b3f0e6;
-    cursor: pointer;
-    font-size: 6px;
-    display: inline-block;
-    gap: 3px;
-    margin-left: 60px;
-    margin-top:10px;
+  h1{
+    font-size: 20px;
   }
+  b{
+    font-size: 15;
   }
 
- 
 
-
-
+}
