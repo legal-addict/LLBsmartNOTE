@@ -1,3 +1,5 @@
+// TEMP storage (replace with DB later)
+const purchases = [];
 require("dotenv").config();
 
 const express = require("express");
@@ -77,11 +79,36 @@ app.post("/verify-payment", (req, res) => {
       .update(body)
       .digest("hex");
 
+    if (expectedSignature === razorpay_signature) app.post("/verify-payment", (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      noteName,
+      userId // 👈 MUST come from frontend
+    } = req.body;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
     if (expectedSignature === razorpay_signature) {
+
+      // ✅ SAVE PURCHASE
+      purchases.push({
+        userId,
+        noteName
+      });
+
       return res.json({
         success: true,
         url: `/notes/${noteName}.html`,
       });
+
     } else {
       return res.status(400).json({ success: false });
     }
@@ -91,7 +118,6 @@ app.post("/verify-payment", (req, res) => {
     res.status(500).json({ success: false });
   }
 });
-
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
