@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLB Curriculum Overview</title>
+
+<style>
+body {
+  margin: 0;
+  background: url(adv.jpg) no-repeat center/cover;
+}
+header {
+  text-align: center;
+  font-size: 40px;
+  padding: 10px;
+  color:rgba(255, 255, 255, 0.71);
+  background: rgba(7, 7, 7, 0.732);
+}
+
+.menu {
+  text-align: center;
+  margin-top: 50px;
+}
+
+/* Buttons */
+.dropbtn {
+  color: rgba(255, 255, 255, 0.596);
+  background: rgba(4, 4, 4, 0.599);
+  padding: 15px 25px;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+  margin: 10px;
+  border-radius: 8px;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  color: #f1f1f1a7;
+  background: rgba(7, 7, 7, 0.542);
+  min-width: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Links */
+.dropdown-content a {
+  display: block;
+  padding: 12px;
+  text-decoration: none;
+  color: white;
+}
+
+.dropdown-content a:hover {
+  background: #f1f1f1a9;
+  color: black;
+}
+
+/* Show dropdown */
+.show {
+  display: block;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+ 
+header {
+  font-size: 20px;
+  padding: 5px;
+}
+
+.menu {
+  margin-top: 25px;
+}
+
+/* Buttons */
+.dropbtn {
+  padding: 7px 15px;
+  font-size: 9px;
+  margin: 5px;
+  border-radius: 4px;
+}
+.dropdown-content {
+  min-width: 2px;
+  border-radius: 4px;
+  font-size: 10PX;
+}
+.dropdown-content a {
+  padding: 1px;
+}
+  }
+
+</style>
+</head>
+
+<body>
+
+<header><h3>UNIVERSITY OF MUMBAI SYLLABUS BY LEGAL ADDICT</h3></header>
+
+<div class="menu">
+
+  <!-- BLS -->
+  <div class="dropdown">
+    <button onclick="toggleDropdown('bls')" class="dropbtn">BLS Syllabus</button>
+    <div id="bls" class="dropdown-content">
+      <a href="first year syllabus.html">First Year</a>
+      <a href="second year syllbus.html">Second Year</a>
+      <a href="third year syllabus.html">Third Year</a>
+      <a href="fourth year syllabus.html">Fourth Year</a>
+      <a href="fifth year syllbus.html">Fifth Year</a>
+    </div>
+  </div>
+
+  <!-- LLB -->
+  <div class="dropdown">
+    <button onclick="toggleDropdown('llb')" class="dropbtn">LLB Syllabus</button>
+    <div id="llb" class="dropdown-content">
+      <a href="third year syllabus.html">First Year</a>
+      <a href="fourth year syllabus.html">Second Year</a>
+      <a href="fifth year syllbus.html">Third Year</a>
+      
+    </div>
+  </div>
+
+  <!-- LLM -->
+  <div class="dropdown">
+    <button onclick="toggleDropdown('llm')" class="dropbtn">LLM Syllabus</button>
+    <div id="llm" class="dropdown-content">
+      <a href="#">Business Law</a>
+      <a href="#">Criminal Law</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function toggleDropdown(id) {
+  document.querySelectorAll(".dropdown-content").forEach(el => {
+    if (el.id !== id) el.classList.remove("show");
+  });
+  document.getElementById(id).classList.toggle("show");
+}
+</script>
+
+</body>
+</html>
