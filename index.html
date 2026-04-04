@@ -218,5 +218,32 @@ button {
 
 </div>
 
+  <script>// protect.js
+window.addEventListener("blur", () => {
+  document.body.style.filter = "blur(10px)";
+});
+
+window.addEventListener("focus", () => {
+  document.body.style.filter = "none";
+});
+
+// Disable right-click
+document.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  alert("Right-click is disabled on this site!");
+});
+
+// Disable copy and cut
+document.addEventListener("copy", e => e.preventDefault());
+document.addEventListener("cut", e => e.preventDefault());
+
+// Disable print shortcut (Ctrl+P / Cmd+P)
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+    e.preventDefault();
+    alert("Printing is disabled on this page!");
+  }
+});</script>
+
 </body>
 </html>
