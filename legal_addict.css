@@ -9,7 +9,7 @@ body {
   background: rgba(0,0,0,0.6);
   padding-left: 40px;
   margin-left: 50px;
-  width: 750px;
+  width: 800px;
   display: flex;
   flex-direction: column;
   align-items: center;      /* Centers items horizontally */
@@ -33,6 +33,17 @@ h1 {
   body{
     font-size:8px;
   }
+  .column {
+  background: rgba(0,0,0,0.6);
+  padding-left: 20px;
+  margin-left: 25px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* Centers items horizontally */
+  justify-content: center;  /* Centers items vertically */
+}
+
   header {
     font-size: 24px;
   }
