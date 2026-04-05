@@ -5,6 +5,16 @@ body {
   color: rgba(255, 255, 255, 0.793); /* ✅ ALL TEXT WHITE */
   font-size: 30px;
 }
+.column {
+  background: rgba(0,0,0,0.6);
+  padding-left: 40px;
+  margin-left: 50px;
+  width: 750px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;      /* Centers items horizontally */
+  justify-content: center;  /* Centers items vertically */
+}
 
 header {
   text-align: center;
