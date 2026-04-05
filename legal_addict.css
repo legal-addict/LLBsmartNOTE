@@ -6,7 +6,8 @@ body {
   font-size: 18px;
 }
 .a {
-  color: yellow;
+  color: rgba(255, 255, 0, 0.723);
+
 }
 
 /* Main container */
