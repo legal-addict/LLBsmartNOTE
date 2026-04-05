@@ -3,7 +3,7 @@ body {
   background: url(adv.jpg) no-repeat center/cover;
   background-attachment: fixed;
   color: rgba(255, 255, 255, 0.793); /* ✅ ALL TEXT WHITE */
-  font-size: 30px;
+  font-size: 20px;
 }
 .column {
   background: rgba(0,0,0,0.6);
@@ -19,13 +19,13 @@ body {
 header {
   text-align: center;
   font-size: 40px;
-  padding: 20px;
+  padding: 15px;
 }
 
 /* Section titles */
 h1 {
   text-align: center;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 
 /* Responsive */
