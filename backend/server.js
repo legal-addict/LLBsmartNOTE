@@ -1,3 +1,4 @@
+// server.js
 require("dotenv").config();
 
 const express = require("express");
@@ -12,6 +13,16 @@ const app = express();
 // TEMP STORAGE (replace with DB later)
 // =========================
 const purchases = [];
+
+// =========================
+// NOTE FILES MAPPING
+// =========================
+const noteFiles = {
+  "English I": "FIRST_Y_SEM_1/English_I.html",
+  "LOGIC - I": "FIRST_Y_SEM_1/LOGIC_I.html",
+  "Economics": "FIRST_Y_SEM_1/Economics.html"
+  // Add more notes here if needed
+};
 
 // =========================
 // MIDDLEWARE
@@ -72,44 +83,34 @@ app.post("/create-order", async (req, res) => {
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      noteName,
-      userId
-    } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, noteName, userId } = req.body;
 
+    // Validate signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+                                    .update(body)
+                                    .digest("hex");
 
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
-
-    if (expectedSignature === razorpay_signature) {
-
-      // ✅ SAVE PURCHASE (avoid duplicate)
-      const alreadyBought = purchases.find(
-        (p) => p.userId === userId && p.noteName === noteName
-      );
-
-      if (!alreadyBought) {
-        purchases.push({ userId, noteName });
-      }
-
-      return res.json({
-        success: true,
-        url: `/notes/${
-          "English I":"FIRST_Y_SEM_1/English_I.html",
-          "LOGIC - I":"FIRST_Y_SEM_1/LOGIC - I.html"
-          "Economics":"FIRST_Y_SEM_1/Economics.html",
-        }.html?userId=${userId}`
-      });
-
-    } else {
-      return res.status(400).json({ success: false });
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, error: "Invalid signature" });
     }
+
+    // Save purchase (avoid duplicates)
+    const alreadyBought = purchases.find(
+      p => p.userId === userId && p.noteName === noteName
+    );
+
+    if (!alreadyBought) purchases.push({ userId, noteName });
+
+    // Get file path from mapping
+    const fileName = noteFiles[noteName];
+    if (!fileName) return res.status(400).json({ success: false, error: "Invalid note" });
+
+    // Return secure note URL
+    return res.json({
+      success: true,
+      url: `/notes/${fileName}?userId=${userId}`
+    });
 
   } catch (err) {
     console.error("Verify error:", err);
@@ -122,11 +123,7 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { userId, noteName } = req.query;
-
-  const found = purchases.find(
-    (p) => p.userId === userId && p.noteName === noteName
-  );
-
+  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
   res.json({ purchased: !!found });
 });
 
@@ -135,33 +132,26 @@ app.get("/check-purchase", (req, res) => {
 // =========================
 app.get("/notes/:name", (req, res) => {
   const userId = req.query.userId;
-  const noteName = req.params.name;
+  const fileName = req.params.name;
 
-  const found = purchases.find(
-    (p) => p.userId === userId && p.noteName === noteName
-  );
+  // Reverse mapping: file → noteName
+  const noteEntry = Object.entries(noteFiles).find(([key, value]) => value === fileName);
+  if (!noteEntry) return res.status(404).send("Note not found");
 
-  if (found) {
-    return res.sendFile(
-      path.join(__dirname, "notes", noteName)
-    );
-  } else {
-    return res.status(403).send("❌ Please purchase this note");
-  }
+  const noteName = noteEntry[0];
+
+  // Check purchase
+  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+  if (!found) return res.status(403).send("❌ Please purchase this note");
+
+  // Send note file
+  return res.sendFile(path.join(__dirname, "notes", fileName));
 });
 
 // =========================
 // START SERVER
 // =========================
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
-});
-window.addEventListener("blur", () => {
-  document.body.style.filter = "blur(10px)";
-});
-
-window.addEventListener("focus", () => {
-  document.body.style.filter = "none";
 });
