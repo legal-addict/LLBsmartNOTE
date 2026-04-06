@@ -100,7 +100,11 @@ app.post("/verify-payment", (req, res) => {
 
       return res.json({
         success: true,
-        url: `/notes/${noteName}.html?userId=${userId}`
+        url: `/notes/${
+          "English I":"FIRST_Y_SEM_1/English_I.html",
+          "LOGIC - I":"FIRST_Y_SEM_1/LOGIC - I.html"
+          "Economics":"FIRST_Y_SEM_1/Economics.html",
+        }.html?userId=${userId}`
       });
 
     } else {
