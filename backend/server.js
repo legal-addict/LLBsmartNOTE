@@ -108,9 +108,9 @@ app.post("/verify-payment", (req, res) => {
 
     // Return secure note URL
     return res.json({
-      success: true,
-      url: `/notes/${fileName}?userId=${userId}`
-    });
+  success: true,
+  url: `https://backend-kxr2.onrender.com/notes/${fileName}?userId=${userId}`
+});
 
   } catch (err) {
     console.error("Verify error:", err);
