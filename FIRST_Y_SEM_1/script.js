@@ -1,7 +1,5 @@
 async function buyNote(noteName, price) {
-  try {
-    const username = prompt("Enter your name") || "User";
-
+  try {const userId = prompt("Enter your name") || "User";
     // ✅ Create order
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order" , {
       method: "POST",
@@ -28,7 +26,7 @@ const orderData = await orderRes.json();
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-            username,
+             userId, 
             noteName
           })
         });
