@@ -18,7 +18,7 @@ const purchases = [];
 // NOTE FILES MAPPING
 // =========================
 const noteFiles = {
-  "English I": "notes/English-I.html",
+  "English I": "notes/FIRST_Y_SEM_1/English_I.html",
   "LOGIC - I": "FIRST_Y_SEM_1/LOGIC_I.html",
   "Economics": "FIRST_Y_SEM_1/Economics.html"
   // Add more notes here if needed
