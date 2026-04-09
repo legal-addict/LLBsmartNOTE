@@ -130,24 +130,30 @@ app.get("/check-purchase", (req, res) => {
 // =========================
 // SECURE NOTE ACCESS 🔐
 // =========================
-app.get("/notes/:name", (req, res) => {
+// =========================
+// SECURE NOTE ACCESS 🔐 (FINAL)
+// =========================
+app.get("/notes/*", (req, res) => {
   const userId = req.query.userId;
-  const fileName = req.params.name;
+  const fileName = req.params[0];
 
-  // Reverse mapping: file → noteName
-  const noteEntry = Object.entries(noteFiles).find(([key, value]) => value === fileName);
+  console.log("REQUESTED:", fileName);
+
+  const noteEntry = Object.entries(noteFiles)
+    .find(([key, value]) => value === fileName);
+
   if (!noteEntry) return res.status(404).send("Note not found");
 
   const noteName = noteEntry[0];
 
-  // Check purchase
-  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+  const found = purchases.find(
+    p => p.userId === userId && p.noteName === noteName
+  );
+
   if (!found) return res.status(403).send("❌ Please purchase this note");
 
-  // Send note file
-  return res.sendFile(path.join(__dirname, fileName);
+  return res.sendFile(path.join(__dirname, "LLBsmartNOTE", fileName));
 });
-
 // =========================
 // START SERVER
 // =========================
