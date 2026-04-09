@@ -145,7 +145,7 @@ app.get("/notes/:name", (req, res) => {
   if (!found) return res.status(403).send("❌ Please purchase this note");
 
   // Send note file
-  return res.sendFile(path.join(__dirname, "notes", fileName));
+  return res.sendFile(path.join(__dirname, fileName));
 });
 
 // =========================
