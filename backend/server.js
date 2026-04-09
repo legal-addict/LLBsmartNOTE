@@ -18,7 +18,7 @@ const purchases = [];
 // NOTE FILES MAPPING
 // =========================
 const noteFiles = {
-  "English I": "notes/English-I.html,
+  "English I": "notes/English-I.html",
   "LOGIC - I": "FIRST_Y_SEM_1/LOGIC_I.html",
   "Economics": "FIRST_Y_SEM_1/Economics.html"
   // Add more notes here if needed
@@ -152,7 +152,7 @@ app.get("/notes/*", (req, res) => {
 
   if (!found) return res.status(403).send("❌ Please purchase this note");
 
-  return res.sendFile(path.join(__dirname, "LLBsmartNOTE", fileName));
+  return res.sendFile(path.join(__dirname, fileName));
 });
 // =========================
 // START SERVER
