@@ -1,5 +1,10 @@
 async function buyNote(noteName, price) {
-  try {const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+  try {let userId = localStorage.getItem("userId");
+
+if (!userId) {
+  userId = "user_" + Date.now();
+  localStorage.setItem("userId", userId);
+}
     // ✅ Create order
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order" , {
       method: "POST",
