@@ -1,5 +1,5 @@
 async function buyNote(noteName, price) {
-  try {const userId = prompt("Enter your name") || "User";
+  try {const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
     // ✅ Create order
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order" , {
       method: "POST",
