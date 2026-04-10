@@ -134,26 +134,45 @@ app.get("/check-purchase", (req, res) => {
 // SECURE NOTE ACCESS 🔐 (FINAL)
 // =========================
 app.get("/notes/*", (req, res) => {
-  const userId = req.query.userId;
-  const fileName = req.params[0];
+  try {
+    const userId = req.query.userId;
+    const noteName = req.query.noteName;
 
-  console.log("REQUESTED:", fileName);
+    console.log("User:", userId);
+    console.log("Note:", noteName);
 
-  const noteEntry = Object.entries(noteFiles)
-  console.log("Mapped note:", noteEntry);
-  if (!noteEntry) return res.status(404).send("Note not found");
+    if (!userId || !noteName) {
+      return res.status(400).send("Missing data");
+    }
 
-  const noteName = noteEntry[0];
+    // get file from mapping
+    const fileName = noteFiles[noteName];
 
-  const found = purchases.find(
-    p => p.userId === userId && p.noteName === noteName
-  );
+    if (!fileName) {
+      return res.status(404).send("Invalid note");
+    }
 
-  if (!found) return res.status(403).send("❌ Please purchase this note");
+    // check purchase
+    const found = purchases.find(
+      p => p.userId === userId && p.noteName === noteName
+    );
 
-  return res.sendFile(path.join(__dirname,"notes", fileName));
-});
-const PORT = process.env.PORT || 3000;
+    if (!found) {
+      return res.status(403).send("❌ Please purchase this note");
+    }
+
+    // correct path
+    const fullPath = path.join(__dirname, "notes", fileName);
+
+    console.log("Serving:", fullPath);
+
+    return res.sendFile(fullPath);
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).send("Server error");
+  }
+});const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
