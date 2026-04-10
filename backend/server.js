@@ -121,40 +121,37 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 // CHECK PURCHASE (optional)
 // =========================
+app.get("/check-purchase", (req, res) => {
+  const { userId, noteName } = req.query;
+  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+  res.json({ purchased: !!found });
+});
+
+// =========================
+// SECURE NOTE ACCESS 🔐
+// =========================
+// =========================
+// SECURE NOTE ACCESS 🔐 (FINAL)
+// =========================
 app.get("/notes/*", (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const noteName = req.query.noteName;
-    const fileName = noteFiles[noteName];
+  const userId = req.query.userId;
+  const fileName = req.params[0];
 
-    console.log("User:", userId);
-    console.log("Note:", noteName);
-    console.log("File:", fileName);
+  console.log("REQUESTED:", fileName);
 
-    if (!userId || !noteName) {
-      return res.status(400).send("Missing data");
-    }
+  const noteEntry = Object.entries(noteFiles)
+  console.log("Mapped note:", noteEntry);
+  if (!noteEntry) return res.status(404).send("Note not found");
 
-    if (!fileName) {
-      return res.status(404).send("Invalid note");
-    }
+  const noteName = noteEntry[0];
 
-    const found = purchases.find(
-      p => p.userId === userId && p.noteName === noteName
-    );
+  const found = purchases.find(
+    p => p.userId === userId && p.noteName === noteName
+  );
 
-    if (!found) {
-      return res.status(403).send("Please purchase this note");
-    }
+  if (!found) return res.status(403).send("❌ Please purchase this note");
 
-    const fullPath = path.join(__dirname, "notes", fileName);
-
-    return res.sendFile(fullPath);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Server error");
-  }
+  return res.sendFile(path.join(__dirname,"notes", fileName));
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
