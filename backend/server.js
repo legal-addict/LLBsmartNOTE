@@ -109,7 +109,7 @@ app.post("/verify-payment", (req, res) => {
     // Return secure note URL
     return res.json({
   success: true,
-  url: `https://backend-kxr2.onrender.com/notes/${fileName}?userId=${userId}`
+  url: `https://backend-kxr2.onrender.com/${fileName}?userId=${userId}`
 });
 
   } catch (err) {
@@ -140,8 +140,7 @@ app.get("/notes/*", (req, res) => {
   console.log("REQUESTED:", fileName);
 
   const noteEntry = Object.entries(noteFiles)
-    .find(([key, value]) => value === fileName);
-
+  console.log("Mapped note:", noteEntry);
   if (!noteEntry) return res.status(404).send("Note not found");
 
   const noteName = noteEntry[0];
@@ -152,11 +151,8 @@ app.get("/notes/*", (req, res) => {
 
   if (!found) return res.status(403).send("❌ Please purchase this note");
 
-  return res.sendFile(path.join(__dirname, fileName));
+  return res.sendFile(path.join(__dirname,"notes", fileName));
 });
-// =========================
-// START SERVER
-// =========================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
