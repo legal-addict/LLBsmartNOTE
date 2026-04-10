@@ -123,7 +123,7 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { userId, noteName } = req.query;
-  app.get("/notes/*", (req, res) => {
+  app.get("/*", (req, res) => {
   try {
     const userId = req.query.userId;
     const noteName = req.query.noteName;
