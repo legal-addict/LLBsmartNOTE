@@ -123,17 +123,7 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { userId, noteName } = req.query;
-  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
-  res.json({ purchased: !!found });
-});
-
-// =========================
-// SECURE NOTE ACCESS 🔐
-// =========================
-// =========================
-// SECURE NOTE ACCESS 🔐 (FINAL)
-// =========================
-app.get("/notes/*", (req, res) => {
+  app.get("/notes/*", (req, res) => {
   try {
     const userId = req.query.userId;
     const noteName = req.query.noteName;
@@ -145,14 +135,12 @@ app.get("/notes/*", (req, res) => {
       return res.status(400).send("Missing data");
     }
 
-    // get file from mapping
     const fileName = noteFiles[noteName];
 
     if (!fileName) {
       return res.status(404).send("Invalid note");
     }
 
-    // check purchase
     const found = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
@@ -161,9 +149,18 @@ app.get("/notes/*", (req, res) => {
       return res.status(403).send("❌ Please purchase this note");
     }
 
-    // correct path
-    const fullPath = path.join(__dirname, "notes", fileName);
+    // 🔥 FIXED PATH (IMPORTANT)
+    const fullPath = path.join(__dirname, "..", fileName);
 
+    console.log("Serving:", fullPath);
+
+    return res.sendFile(fullPath);
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).send("Server error");
+  }
+});
     console.log("Serving:", fullPath);
 
     return res.sendFile(fullPath);
