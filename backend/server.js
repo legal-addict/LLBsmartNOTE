@@ -1,4 +1,3 @@
-// server.js
 require("dotenv").config();
 
 const express = require("express");
@@ -32,7 +31,6 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"],
 }));
-
 app.use(express.json());
 
 // =========================
@@ -85,7 +83,6 @@ app.post("/verify-payment", (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, noteName, userId } = req.body;
 
-    // Validate signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
                                     .update(body)
@@ -95,22 +92,19 @@ app.post("/verify-payment", (req, res) => {
       return res.status(400).json({ success: false, error: "Invalid signature" });
     }
 
-    // Save purchase (avoid duplicates)
     const alreadyBought = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
 
     if (!alreadyBought) purchases.push({ userId, noteName });
 
-    // Get file path from mapping
     const fileName = noteFiles[noteName];
     if (!fileName) return res.status(400).json({ success: false, error: "Invalid note" });
 
-    // Return secure note URL
     return res.json({
-  success: true,
-  url: `https://backend-kxr2.onrender.com/notes/${fileName}?userId=${userId}&noteName=${encodeURIComponent(noteName)}`
-});
+      success: true,
+      url: `https://backend-kxr2.onrender.com/notes/${fileName}?userId=${userId}&noteName=${encodeURIComponent(noteName)}`
+    });
 
   } catch (err) {
     console.error("Verify error:", err);
@@ -119,11 +113,18 @@ app.post("/verify-payment", (req, res) => {
 });
 
 // =========================
-// CHECK PURCHASE (optional)
+// CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { userId, noteName } = req.query;
-  app.get("/*", (req, res) => {
+  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+  res.json({ purchased: !!found });
+});
+
+// =========================
+// SECURE NOTE ACCESS
+// =========================
+app.get("/notes/*", (req, res) => {
   try {
     const userId = req.query.userId;
     const noteName = req.query.noteName;
@@ -131,26 +132,19 @@ app.get("/check-purchase", (req, res) => {
     console.log("User:", userId);
     console.log("Note:", noteName);
 
-    if (!userId || !noteName) {
-      return res.status(400).send("Missing data");
-    }
+    if (!userId || !noteName) return res.status(400).send("Missing data");
 
     const fileName = noteFiles[noteName];
-
-    if (!fileName) {
-      return res.status(404).send("Invalid note");
-    }
+    if (!fileName) return res.status(404).send("Invalid note");
 
     const found = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
 
-    if (!found) {
-      return res.status(403).send("❌ Please purchase this note");
-    }
+    if (!found) return res.status(403).send("❌ Please purchase this note");
 
-    // 🔥 FIXED PATH (IMPORTANT)
-    const fullPath = path.join(__dirname, "..", fileName);
+    // 🔥 FIXED PATH
+    const fullPath = path.join(__dirname, "..", fileName); // go up one level to match your folder structure
 
     console.log("Serving:", fullPath);
 
@@ -161,15 +155,8 @@ app.get("/check-purchase", (req, res) => {
     res.status(500).send("Server error");
   }
 });
-    console.log("Serving:", fullPath);
 
-    return res.sendFile(fullPath);
-
-  } catch (err) {
-    console.error("Error:", err);
-    res.status(500).send("Server error");
-  }
-});const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
