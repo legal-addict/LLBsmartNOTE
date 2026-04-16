@@ -1,3 +1,11 @@
+const fs = require("fs");
+
+let purchases = [];
+
+if (fs.existsSync("purchases.json")) {
+  const data = fs.readFileSync("purchases.json");
+  purchases = JSON.parse(data);
+}
 require("dotenv").config();
 
 const express = require("express");
@@ -91,7 +99,12 @@ app.post("/verify-payment", (req, res) => {
     if (expectedSignature !== razorpay_signature) {
       return res.status(400).json({ success: false, error: "Invalid signature" });
     }
+if (!alreadyBought) {
+  purchases.push({ userId, noteName });
 
+  fs.writeFileSync("purchases.json", JSON.stringify(purchases, null, 2));
+}
+    
     const alreadyBought = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
