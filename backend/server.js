@@ -143,7 +143,7 @@ app.get("/notes/*", (req, res) => {
 
     if (!found) return res.status(403).send("❌ Please purchase this note");
     
-  const fullPath = path.join(__dirname, fileName);
+  const fullPath = path.join(__dirname, "..", fileName);
     
     console.log("Serving:", fullPath);
 
