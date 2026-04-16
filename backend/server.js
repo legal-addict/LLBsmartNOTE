@@ -142,10 +142,9 @@ app.get("/notes/*", (req, res) => {
     );
 
     if (!found) return res.status(403).send("❌ Please purchase this note");
-
-    // 🔥 FIXED PATH
-    const fullPath = path.join(__dirname, "..", fileName); // go up one level to match your folder structure
-
+    
+  const fullPath = path.join(__dirname, fileName);
+    
     console.log("Serving:", fullPath);
 
     return res.sendFile(fullPath);
