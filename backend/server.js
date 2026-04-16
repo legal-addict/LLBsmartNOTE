@@ -1,11 +1,3 @@
-const fs = require("fs");
-
-let purchases = [];
-
-if (fs.existsSync("purchases.json")) {
-  const data = fs.readFileSync("purchases.json");
-  purchases = JSON.parse(data);
-}
 require("dotenv").config();
 
 const express = require("express");
@@ -13,22 +5,27 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 
 // =========================
-// TEMP STORAGE (replace with DB later)
+// LOAD PURCHASES FROM FILE
 // =========================
-const purchases = [];
+let purchases = [];
+
+if (fs.existsSync("purchases.json")) {
+  const data = fs.readFileSync("purchases.json");
+  purchases = JSON.parse(data);
+}
 
 // =========================
 // NOTE FILES MAPPING
 // =========================
 const noteFiles = {
   "English I": "FIRST_Y_SEM_1/English_I.html",
-  "LOGIC - I": "FIRST_Y_SEM_1/LOGIC_I.html",
   "Economics": "FIRST_Y_SEM_1/Economics.html"
-  // Add more notes here if needed
+  // Add more notes only if files exist
 };
 
 // =========================
@@ -39,6 +36,7 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"],
 }));
+
 app.use(express.json());
 
 // =========================
@@ -85,34 +83,55 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT + SAVE PURCHASE
+// VERIFY PAYMENT + SAVE
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, noteName, userId } = req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      noteName,
+      userId
+    } = req.body;
 
+    // Verify signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-                                    .update(body)
-                                    .digest("hex");
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({ success: false, error: "Invalid signature" });
+      return res.status(400).json({
+        success: false,
+        error: "Invalid signature"
+      });
     }
-if (!alreadyBought) {
-  purchases.push({ userId, noteName });
 
-  fs.writeFileSync("purchases.json", JSON.stringify(purchases, null, 2));
-}
-    
+    // Check if already purchased
     const alreadyBought = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
 
-    if (!alreadyBought) purchases.push({ userId, noteName });
+    // Save purchase
+    if (!alreadyBought) {
+      purchases.push({ userId, noteName });
+
+      fs.writeFileSync(
+        "purchases.json",
+        JSON.stringify(purchases, null, 2)
+      );
+    }
 
     const fileName = noteFiles[noteName];
-    if (!fileName) return res.status(400).json({ success: false, error: "Invalid note" });
+    if (!fileName) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid note"
+      });
+    }
 
     return res.json({
       success: true,
@@ -130,7 +149,11 @@ if (!alreadyBought) {
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { userId, noteName } = req.query;
-  const found = purchases.find(p => p.userId === userId && p.noteName === noteName);
+
+  const found = purchases.find(
+    p => p.userId === userId && p.noteName === noteName
+  );
+
   res.json({ purchased: !!found });
 });
 
@@ -145,19 +168,26 @@ app.get("/notes/*", (req, res) => {
     console.log("User:", userId);
     console.log("Note:", noteName);
 
-    if (!userId || !noteName) return res.status(400).send("Missing data");
+    if (!userId || !noteName) {
+      return res.status(400).send("Missing data");
+    }
 
     const fileName = noteFiles[noteName];
-    if (!fileName) return res.status(404).send("Invalid note");
+    if (!fileName) {
+      return res.status(404).send("Invalid note");
+    }
 
     const found = purchases.find(
       p => p.userId === userId && p.noteName === noteName
     );
 
-    if (!found) return res.status(403).send("❌ Please purchase this note");
-    
-  const fullPath = path.join(__dirname, "..", fileName);
-    
+    if (!found) {
+      return res.status(403).send("❌ Please purchase this note");
+    }
+
+    // Correct path (IMPORTANT)
+    const fullPath = path.join(__dirname, "..", fileName);
+
     console.log("Serving:", fullPath);
 
     return res.sendFile(fullPath);
@@ -168,7 +198,11 @@ app.get("/notes/*", (req, res) => {
   }
 });
 
+// =========================
+// START SERVER
+// =========================
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
