@@ -18,7 +18,18 @@ if (fs.existsSync("purchases.json")) {
   const data = fs.readFileSync("purchases.json");
   purchases = JSON.parse(data);
 }
+let email = localStorage.getItem("email");
 
+if (!email) {
+  email = prompt("Enter your email to access notes:");
+  
+  if (!email) {
+    alert("Email is required");
+    return;
+  }
+
+  localStorage.setItem("email", email);
+}
 // =========================
 // NOTE FILES MAPPING
 // =========================
