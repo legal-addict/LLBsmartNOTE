@@ -6,11 +6,30 @@ if (!userId) {
   localStorage.setItem("userId", userId);
 }
     // ✅ Create order
+       let email = localStorage.getItem("email");
+
+if (!email) {
+  email = prompt("Enter your email to access notes:");
+  
+  if (!email) {
+    alert("Email is required");
+    return;
+  }
+
+  localStorage.setItem("email", email);
+}
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order" , {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({amount: price * 100 })
     });
+       const checkRes = await fetch(`https://backend-kxr2.onrender.com/check-purchase?email=${email}&noteName=${noteName}`);
+const checkData = await checkRes.json();
+
+if (checkData.purchased) {
+  window.location.href = `https://backend-kxr2.onrender.com/notes/${noteName}?email=${email}`;
+  return;
+}
 
 if (!orderRes.ok) throw new Error("Order creation failed");
 const orderData = await orderRes.json();
@@ -31,7 +50,7 @@ const orderData = await orderRes.json();
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-             userId, 
+            email,   
             noteName
           })
         });
