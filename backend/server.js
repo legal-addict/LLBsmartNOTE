@@ -18,18 +18,6 @@ if (fs.existsSync("purchases.json")) {
   const data = fs.readFileSync("purchases.json");
   purchases = JSON.parse(data);
 }
-let email = localStorage.getItem("email");
-
-if (!email) {
-  email = prompt("Enter your email to access notes:");
-  
-  if (!email) {
-    alert("Email is required");
-    return;
-  }
-
-  localStorage.setItem("email", email);
-}
 // =========================
 // NOTE FILES MAPPING
 // =========================
@@ -159,7 +147,7 @@ app.post("/verify-payment", (req, res) => {
 // CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
-  const { userId, noteName } = req.query;
+  const { userId, email } = req.query;
 
   const found = purchases.find(
     p => p.userId === userId && p.noteName === noteName
