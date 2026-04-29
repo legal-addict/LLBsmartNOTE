@@ -14,7 +14,7 @@ async function buyNote(noteName, price) {
       localStorage.setItem("email", email);
     }
 
-    // ✅ STEP 1: Check if already purchased
+    // ✅ STEP 1: Check purchase
     const checkRes = await fetch(
       `https://backend-kxr2.onrender.com/check-purchase?email=${encodeURIComponent(email)}&noteName=${encodeURIComponent(noteName)}`
     );
@@ -22,12 +22,11 @@ async function buyNote(noteName, price) {
     const checkData = await checkRes.json();
 
     if (checkData.purchased) {
-      // ✅ Correct redirect (from backend)
       window.location.href = checkData.url;
       return;
     }
 
-    // ✅ STEP 2: Create order ONLY if not purchased
+    // ✅ STEP 2: Create order
     const orderRes = await fetch(
       "https://backend-kxr2.onrender.com/create-order",
       {
@@ -37,7 +36,7 @@ async function buyNote(noteName, price) {
       }
     );
 
-    if (!orderRes.ok) throw new Error("Order creation failed");
+    if (!orderRes.ok) throw new Error("Order failed");
 
     const orderData = await orderRes.json();
 
@@ -69,10 +68,9 @@ async function buyNote(noteName, price) {
         const verifyData = await verifyRes.json();
 
         if (verifyData.success) {
-          // ✅ Always use backend URL
           window.location.href = verifyData.url;
         } else {
-          alert("Payment verification failed.");
+          alert("Payment verification failed");
         }
       },
 
@@ -84,8 +82,8 @@ async function buyNote(noteName, price) {
     const rzp = new Razorpay(options);
     rzp.open();
 
-  } catch (error) {
-    console.error("ERROR:", error);
-    alert("Payment failed");
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
   }
 }
