@@ -87,12 +87,12 @@ app.post("/create-order", async (req, res) => {
 app.post("/verify-payment", (req, res) => {
   try {
     const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      noteName,
-      userId
-    } = req.body;
+  razorpay_order_id,
+  razorpay_payment_id,
+  razorpay_signature,
+  noteName,
+  email
+} = req.body;
 
     // Verify signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -111,19 +111,17 @@ app.post("/verify-payment", (req, res) => {
 
     // Check if already purchased
     const alreadyBought = purchases.find(
-      p => p.userId === userId && p.noteName === noteName
-    );
-
+  p => p.email === email && p.noteName === noteName
+);
     // Save purchase
-    if (!alreadyBought) {
-      purchases.push({ userId, noteName });
+   if (!alreadyBought) {
+  purchases.push({ email, noteName });
 
-      fs.writeFileSync(
-        "purchases.json",
-        JSON.stringify(purchases, null, 2)
-      );
-    }
-
+  fs.writeFileSync(
+    "purchases.json",
+    JSON.stringify(purchases, null, 2)
+  );
+}
     const fileName = noteFiles[noteName];
     if (!fileName) {
       return res.status(400).json({
@@ -133,10 +131,9 @@ app.post("/verify-payment", (req, res) => {
     }
 
     return res.json({
-      success: true,
-      url: `https://backend-kxr2.onrender.com/notes/${fileName}?userId=${userId}&noteName=${encodeURIComponent(noteName)}`
-    });
-
+  success: true,
+  url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${email}&noteName=${encodeURIComponent(noteName)}`
+});
   } catch (err) {
     console.error("Verify error:", err);
     res.status(500).json({ success: false });
@@ -147,14 +144,13 @@ app.post("/verify-payment", (req, res) => {
 // CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
-  const { userId, email } = req.query;
+  const { email, noteName } = req.query;
 
-  const found = purchases.find(
-    p => p.userId === userId && p.noteName === noteName
-  );
+const found = purchases.find(
+  p => p.email === email && p.noteName === noteName
+);
 
-  res.json({ purchased: !!found });
-});
+res.json({ purchased: !!found });
 
 // =========================
 // SECURE NOTE ACCESS
