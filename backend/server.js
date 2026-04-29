@@ -10,21 +10,20 @@ const fs = require("fs");
 const app = express();
 
 // =========================
-// LOAD PURCHASES FROM FILE
+// LOAD PURCHASES
 // =========================
 let purchases = [];
 
 if (fs.existsSync("purchases.json")) {
-  const data = fs.readFileSync("purchases.json");
-  purchases = JSON.parse(data);
+  purchases = JSON.parse(fs.readFileSync("purchases.json"));
 }
+
 // =========================
-// NOTE FILES MAPPING
+// NOTE FILES
 // =========================
 const noteFiles = {
   "English I": "FIRST_Y_SEM_1/English_I.html",
   "Economics": "FIRST_Y_SEM_1/Economics.html"
-  // Add more notes only if files exist
 };
 
 // =========================
@@ -32,21 +31,20 @@ const noteFiles = {
 // =========================
 app.use(cors({
   origin: "https://legal-addict.github.io",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
+  methods: ["GET", "POST"]
 }));
 
 app.use(express.json());
 
 // =========================
-// BASIC ROUTE
+// HOME
 // =========================
 app.get("/", (req, res) => {
   res.send("Backend running ✅");
 });
 
 // =========================
-// RAZORPAY SETUP
+// RAZORPAY
 // =========================
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -72,29 +70,27 @@ app.post("/create-order", async (req, res) => {
 
     res.json({
       key: process.env.RAZORPAY_KEY_ID,
-      order,
+      order
     });
 
   } catch (err) {
-    console.error("Create order error:", err);
     res.status(500).json({ error: "Order creation failed" });
   }
 });
 
 // =========================
-// VERIFY PAYMENT + SAVE
+// VERIFY PAYMENT
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
     const {
-  razorpay_order_id,
-  razorpay_payment_id,
-  razorpay_signature,
-  noteName,
-  email
-} = req.body;
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      noteName,
+      email
+    } = req.body;
 
-    // Verify signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -103,34 +99,35 @@ app.post("/verify-payment", (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid signature"
-      });
+      return res.json({ success: false });
     }
 
-    // Check if already purchased
-    const alreadyBought = purchases.find(
-  p => p.email === email && p.noteName === noteName
-);
     // Save purchase
-   if (!alreadyBought) {
-  purchases.push({ email, noteName });
+    const exists = purchases.find(
+      p => p.email === email && p.noteName === noteName
+    );
 
-  fs.writeFileSync(
-    "purchases.json",
-    JSON.stringify(purchases, null, 2)
-  );
-}
-    const fileName = noteFiles[noteName];
-    if (!fileName) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid note"
-      });
+    if (!exists) {
+      purchases.push({ email, noteName });
+      fs.writeFileSync("purchases.json", JSON.stringify(purchases, null, 2));
     }
 
-   app.get("/check-purchase", (req, res) => {
+    const fileName = noteFiles[noteName];
+
+    return res.json({
+      success: true,
+      url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${encodeURIComponent(email)}&noteName=${encodeURIComponent(noteName)}`
+    });
+
+  } catch (err) {
+    res.json({ success: false });
+  }
+});
+
+// =========================
+// CHECK PURCHASE
+// =========================
+app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
 
   const found = purchases.find(
@@ -142,77 +139,48 @@ app.post("/verify-payment", (req, res) => {
 
     return res.json({
       purchased: true,
-      url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${email}&noteName=${encodeURIComponent(noteName)}`
+      url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${encodeURIComponent(email)}&noteName=${encodeURIComponent(noteName)}`
     });
   }
 
   res.json({ purchased: false });
 });
-  } catch (err) {
-    console.error("Verify error:", err);
-    res.status(500).json({ success: false });
-  }
-});
 
 // =========================
-// CHECK PURCHASE
-  const { email, noteName } = req.query;
-
-  // =========================
-// CHECK PURCHASE
-// =========================
-app.get("/check-purchase", (req, res) => {
-  const { email, noteName } = req.query;
-
-  const found = purchases.find(
-    p => p.email === email && p.noteName === noteName
-  );
-
-  res.json({ purchased: !!found });
-});
-
-// =========================
-// SECURE NOTE ACCESS
+// SERVE NOTES
 // =========================
 app.get("/notes/*", (req, res) => {
   try {
-    const email = req.query.email;
-const noteName = req.query.noteName;
-console.log("Email:", email);
-    console.log("Note:", noteName);
+    const { email, noteName } = req.query;
 
     if (!email || !noteName) {
-  return res.status(400).send("Missing data");
-}
-    
+      return res.status(400).send("Missing data");
+    }
+
     const fileName = noteFiles[noteName];
     if (!fileName) {
       return res.status(404).send("Invalid note");
     }
 
     const found = purchases.find(
-  p => p.email === email && p.noteName === noteName
-);
+      p => p.email === email && p.noteName === noteName
+    );
 
     if (!found) {
       return res.status(403).send("❌ Please purchase this note");
     }
 
-    // Correct path (IMPORTANT)
     const fullPath = path.join(__dirname, "..", fileName);
-
-    console.log("Serving:", fullPath);
 
     return res.sendFile(fullPath);
 
   } catch (err) {
-    console.error("Error:", err);
     res.status(500).send("Server error");
   }
 });
 
 // =========================
-// START SERVER
+// START
 // =========================
 const PORT = process.env.PORT || 3000;
 
