@@ -22,8 +22,12 @@ async function buyNote(noteName, price) {
     const checkData = await checkRes.json();
 
     if (checkData.purchased) {
-      window.location.href = checkData.url;
-      return;
+      console.log("Redirect URL:", verifyData.url);
+      if (verifyData.success && verifyData.url) {
+  window.location.href = verifyData.url;
+} else {
+  alert("Something went wrong: no URL returned");
+}
     }
 
     // ✅ STEP 2: Create order
