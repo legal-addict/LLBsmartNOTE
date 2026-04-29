@@ -130,9 +130,16 @@ app.post("/verify-payment", (req, res) => {
 app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
 
+  if (!email || !noteName) {
+    return res.json({ purchased: false });
+  }
+
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
   );
+
+  res.json({ purchased: !!found });
+});
 
   if (found) {
     const fileName = noteFiles[noteName];
@@ -150,30 +157,30 @@ app.get("/check-purchase", (req, res) => {
 // SERVE NOTES
 // =========================
 app.get("/notes/*", (req, res) => {
-  try {
-    const { email, noteName } = req.query;
+  const { email, noteName } = req.query;
 
-    if (!email || !noteName) {
-      return res.status(400).send("Missing data");
-    }
+  if (!email || !noteName) {
+    return res.status(400).send("Missing data");
+  }
 
-    const fileName = noteFiles[noteName];
-    if (!fileName) {
-      return res.status(404).send("Invalid note");
-    }
+  const fileName = noteFiles[noteName];
 
-    const found = purchases.find(
-      p => p.email === email && p.noteName === noteName
-    );
+  if (!fileName) {
+    return res.status(404).send("Invalid note name");
+  }
 
-    if (!found) {
-      return res.status(403).send("❌ Please purchase this note");
-    }
+  const found = purchases.find(
+    p => p.email === email && p.noteName === noteName
+  );
 
-    const fullPath = path.join(__dirname, "..", fileName);
+  if (!found) {
+    return res.status(403).send("❌ Not purchased");
+  }
 
-    return res.sendFile(fullPath);
+  const fullPath = path.join(__dirname, "..", fileName);
 
+  return res.sendFile(fullPath);
+});
   } catch (err) {
     res.status(500).send("Server error");
   }
