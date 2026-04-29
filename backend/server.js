@@ -144,12 +144,18 @@ app.post("/verify-payment", (req, res) => {
 // CHECK PURCHASE
   const { email, noteName } = req.query;
 
+  // =========================
+// CHECK PURCHASE
+// =========================
+app.get("/check-purchase", (req, res) => {
+  const { email, noteName } = req.query;
+
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
   );
 
   res.json({ purchased: !!found });
-}); 
+});
 
 // =========================
 // SECURE NOTE ACCESS
@@ -161,10 +167,10 @@ const noteName = req.query.noteName;
 console.log("Email:", email);
     console.log("Note:", noteName);
 
-    if (!userId || !noteName) {
-      return res.status(400).send("Missing data");
-    }
-
+    if (!email || !noteName) {
+  return res.status(400).send("Missing data");
+}
+    
     const fileName = noteFiles[noteName];
     if (!fileName) {
       return res.status(404).send("Invalid note");
