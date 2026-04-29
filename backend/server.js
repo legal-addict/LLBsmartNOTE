@@ -142,25 +142,23 @@ app.post("/verify-payment", (req, res) => {
 
 // =========================
 // CHECK PURCHASE
-// =========================
-app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
 
-const found = purchases.find(
-  p => p.email === email && p.noteName === noteName
-);
+  const found = purchases.find(
+    p => p.email === email && p.noteName === noteName
+  );
 
-res.json({ purchased: !!found });
+  res.json({ purchased: !!found });
+}); 
 
 // =========================
 // SECURE NOTE ACCESS
 // =========================
 app.get("/notes/*", (req, res) => {
   try {
-    const userId = req.query.userId;
-    const noteName = req.query.noteName;
-
-    console.log("User:", userId);
+    const email = req.query.email;
+const noteName = req.query.noteName;
+console.log("Email:", email);
     console.log("Note:", noteName);
 
     if (!userId || !noteName) {
@@ -173,8 +171,8 @@ app.get("/notes/*", (req, res) => {
     }
 
     const found = purchases.find(
-      p => p.userId === userId && p.noteName === noteName
-    );
+  p => p.email === email && p.noteName === noteName
+);
 
     if (!found) {
       return res.status(403).send("❌ Please purchase this note");
