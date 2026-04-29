@@ -130,9 +130,23 @@ app.post("/verify-payment", (req, res) => {
       });
     }
 
+   app.get("/check-purchase", (req, res) => {
+  const { email, noteName } = req.query;
+
+  const found = purchases.find(
+    p => p.email === email && p.noteName === noteName
+  );
+
+  if (found) {
+    const fileName = noteFiles[noteName];
+
     return res.json({
-  success: true,
-  url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${email}&noteName=${encodeURIComponent(noteName)}`
+      purchased: true,
+      url: `https://backend-kxr2.onrender.com/notes/${fileName}?email=${email}&noteName=${encodeURIComponent(noteName)}`
+    });
+  }
+
+  res.json({ purchased: false });
 });
   } catch (err) {
     console.error("Verify error:", err);
