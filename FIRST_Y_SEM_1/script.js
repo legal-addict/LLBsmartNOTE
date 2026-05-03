@@ -71,4 +71,4 @@ async function buyNote(noteName, price) {
     console.log(err);
     alert("Error occurred");
   }
-} my frntend is correct
+} 
