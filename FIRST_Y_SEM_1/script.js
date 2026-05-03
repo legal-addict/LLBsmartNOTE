@@ -25,45 +25,32 @@ async function buyNote(noteName, price) {
       name: "Legal Addict",
       description: noteName,
 
-      handler: async function (response) {
+     handler: async function (response) {
 
-        const verifyRes = await fetch("https://backend-kxr2.onrender.com/verify-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            email,
-            noteName
-          })
-        });
+  const verifyRes = await fetch("https://backend-kxr2.onrender.com/verify-payment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      razorpay_order_id: response.razorpay_order_id,
+      razorpay_payment_id: response.razorpay_payment_id,
+      razorpay_signature: response.razorpay_signature,
+      email,
+      noteName
+    })
+  });
 
-        const verifyData = await verifyRes.json();
+  const verifyData = await verifyRes.json();
 
-        if (verifyData.success) {
+  if (verifyData.success) {
 
-          // check purchase
-          const check = await fetch(
-            `https://backend-kxr2.onrender.com/check-purchase?email=${email}&noteName=${noteName}`
-          );
+    // 🚀 DIRECT REDIRECT (REMOVE CHECK API)
+    window.location.href =
+      `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
 
-          const data = await check.json();
-
-          if (data.purchased) {
-            window.location.href =
-  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
-                              
-          } else {
-            alert("Payment done but access not found");
-          }
-
-        } else {
-          alert("Payment failed");
-        }
-      }
-    };
-
+  } else {
+    alert("Payment failed");
+  }
+}
     const rzp = new Razorpay(options);
     rzp.open();
 
