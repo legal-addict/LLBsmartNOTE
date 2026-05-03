@@ -1,4 +1,4 @@
-async function buyNote(noteName, price) {
+window.buyNote = async function(noteName, price) {
   try {
     let email = localStorage.getItem("email");
 
@@ -8,14 +8,18 @@ async function buyNote(noteName, price) {
       localStorage.setItem("email", email);
     }
 
-    // CREATE ORDER
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: price * 100 })
+      body: JSON.stringify({ amount: Number(price) * 100 })
     });
 
     const orderData = await orderRes.json();
+
+    if (!orderData.order) {
+      alert("Order failed");
+      return;
+    }
 
     const options = {
       key: orderData.key,
@@ -42,24 +46,10 @@ async function buyNote(noteName, price) {
         const verifyData = await verifyRes.json();
 
         if (verifyData.success) {
-
-          // check purchase
-          const check = await fetch(
-            `https://backend-kxr2.onrender.com/check-purchase?email=${email}&noteName=${noteName}`
-          );
-
-          const data = await check.json();
-
-          if (data.purchased) {
-            window.location.href =
-  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
-                              
-          } else {
-            alert("Payment done but access not found");
-          }
-
+          window.location.href =
+            `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
         } else {
-          alert("Payment failed");
+          alert("Payment verification failed");
         }
       }
     };
@@ -71,4 +61,4 @@ async function buyNote(noteName, price) {
     console.log(err);
     alert("Error occurred");
   }
-} 
+};
