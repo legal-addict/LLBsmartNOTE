@@ -1,5 +1,5 @@
 require("dotenv").config();
-
+console.log(__dirname);
 const express = require("express");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
@@ -24,10 +24,13 @@ if (fs.existsSync(filePath)) {
 // NOTE FILES (MUST MATCH EXACT BUTTON TEXT)
 // =========================
 const noteFiles = {
-  "English I": "FIRST_Y_SEM_1/English_I.html",
-  "Economics": "FIRST_Y_SEM_1/Economics.html",
-  "LOGIC - I": "FIRST_Y_SEM_1/LOGIC_I.html"
+  "English I": path.join(__dirname, "FIRST_Y_SEM_1", "English_I.html"),
+  "Economics": path.join(__dirname, "FIRST_Y_SEM_1", "Economics.html"),
+  "LOGIC - I": path.join(__dirname, "FIRST_Y_SEM_1", "LOGIC_I.html")
 };
+return res.sendFile(file);
+
+console.log(purchases);
 
 // =========================
 // MIDDLEWARE
@@ -148,12 +151,6 @@ app.get("/notes", (req, res) => {
     return res.status(400).send("Missing data");
   }
 
-  const file = noteFiles[noteName];
-
-  if (!file) {
-    return res.status(404).send("Invalid note");
-  }
-
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
   );
@@ -162,11 +159,20 @@ app.get("/notes", (req, res) => {
     return res.status(403).send("❌ Not purchased");
   }
 
-  const fullPath = path.join(__dirname, file);
+  const fileMap = {
+    "English I": "English_I.html",
+    "Economics": "Economics.html",
+    "LOGIC - I": "LOGIC_I.html"
+  };
 
-  return res.sendFile(fullPath);
+  const fileName = fileMap[noteName];
+
+  const fullPath = path.join(__dirname, "FIRST_Y_SEM_1", fileName);
+
+  console.log("Serving:", fullPath);
+
+  res.sendFile(fullPath);
 });
-
 // =========================
 // START SERVER
 // =========================
