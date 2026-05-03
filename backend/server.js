@@ -154,7 +154,7 @@ app.get("/notes", (req, res) => {
   }
 
   const fileMap = {
-    "English I": "FIRST_Y_SEM_1/English_I.html",
+    "English I": "English_I.html",
     "Economics": "Economics.html",
     "LOGIC - I": "LOGIC_I.html"
   };
