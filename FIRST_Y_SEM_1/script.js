@@ -8,7 +8,9 @@ async function buyNote(noteName, price) {
       localStorage.setItem("email", email);
     }
 
+    // =========================
     // CREATE ORDER
+    // =========================
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -17,6 +19,14 @@ async function buyNote(noteName, price) {
 
     const orderData = await orderRes.json();
 
+    if (!orderData.order) {
+      alert("Order creation failed");
+      return;
+    }
+
+    // =========================
+    // RAZORPAY OPTIONS
+    // =========================
     const options = {
       key: orderData.key,
       amount: orderData.order.amount,
@@ -25,37 +35,51 @@ async function buyNote(noteName, price) {
       name: "Legal Addict",
       description: noteName,
 
-     handler: async function (response) {
+      handler: async function (response) {
 
-  const verifyRes = await fetch("https://backend-kxr2.onrender.com/verify-payment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      razorpay_order_id: response.razorpay_order_id,
-      razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      email,
-      noteName
-    })
-  });
+        // =========================
+        // VERIFY PAYMENT
+        // =========================
+        const verifyRes = await fetch("https://backend-kxr2.onrender.com/verify-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            email,
+            noteName
+          })
+        });
 
-  const verifyData = await verifyRes.json();
+        const verifyData = await verifyRes.json();
 
-  if (verifyData.success) {
+        if (verifyData.success) {
 
-    // 🚀 DIRECT REDIRECT (REMOVE CHECK API)
-    window.location.href =
-      `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
+          // =========================
+          // DIRECT REDIRECT TO NOTES
+          // =========================
+          window.location.href =
+            `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
 
-  } else {
-    alert("Payment failed");
-  }
-}
+        } else {
+          alert("Payment verification failed");
+        }
+      },
+
+      theme: {
+        color: "#3399cc"
+      }
+    };
+
+    // =========================
+    // OPEN PAYMENT POPUP
+    // =========================
     const rzp = new Razorpay(options);
     rzp.open();
 
   } catch (err) {
     console.log(err);
-    alert("Error occurred");
+    alert("Something went wrong");
   }
 }
