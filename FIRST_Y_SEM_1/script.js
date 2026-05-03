@@ -52,7 +52,8 @@ async function buyNote(noteName, price) {
 
           if (data.purchased) {
             window.location.href =
-              `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${noteName}`;
+  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
+                              
           } else {
             alert("Payment done but access not found");
           }
