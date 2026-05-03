@@ -51,10 +51,18 @@ window.buyNote = async function(noteName, price) {
         } else {
           alert("Payment verification failed");
         }
-      }
+      },
+
+      theme: { color: "#3399cc" }
     };
 
     const rzp = new Razorpay(options);
+
+    rzp.on("payment.failed", function (response) {
+      console.log(response.error);
+      alert("Payment failed");
+    });
+
     rzp.open();
 
   } catch (err) {
