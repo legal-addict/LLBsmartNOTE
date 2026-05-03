@@ -10,19 +10,30 @@ const fs = require("fs");
 const app = express();
 
 // =========================
-// DEBUG PATH
+// DEBUG
 // =========================
 console.log("Server directory:", __dirname);
 
 // =========================
-// LOAD PURCHASES
+// FILE PATH
+// =========================
+const filePath = path.join(__dirname, "purchases.json");
+
+// =========================
+// LOAD OR CREATE PURCHASES
 // =========================
 let purchases = [];
 
-const filePath = path.join(__dirname, "purchases.json");
-
-if (fs.existsSync(filePath)) {
-  purchases = JSON.parse(fs.readFileSync(filePath));
+try {
+  if (fs.existsSync(filePath)) {
+    purchases = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } else {
+    fs.writeFileSync(filePath, JSON.stringify([]));
+    purchases = [];
+  }
+} catch (err) {
+  console.log("Error loading purchases:", err);
+  purchases = [];
 }
 
 // =========================
@@ -32,7 +43,7 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// RAZORPAY SETUP
+// RAZORPAY
 // =========================
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -105,7 +116,7 @@ app.post("/verify-payment", (req, res) => {
 
       fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
 
-      console.log("Saved purchases:", purchases);
+      console.log("Saved purchase:", email, noteName);
     }
 
     res.json({ success: true });
@@ -117,27 +128,12 @@ app.post("/verify-payment", (req, res) => {
 });
 
 // =========================
-// CHECK PURCHASE
-// =========================
-app.get("/check-purchase", (req, res) => {
-  const { email, noteName } = req.query;
-
-  if (!email || !noteName) {
-    return res.json({ purchased: false });
-  }
-
-  const found = purchases.find(
-    p => p.email === email && p.noteName === noteName
-  );
-
-  res.json({ purchased: !!found });
-});
-
-// =========================
-// SERVE NOTES (PROTECTED)
+// SERVE NOTES
 // =========================
 app.get("/notes", (req, res) => {
   const { email, noteName } = req.query;
+
+  console.log("Request:", email, noteName);
 
   if (!email || !noteName) {
     return res.status(400).send("Missing data");
@@ -146,6 +142,8 @@ app.get("/notes", (req, res) => {
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
   );
+
+  console.log("Purchase found:", found);
 
   if (!found) {
     return res.status(403).send("❌ Not purchased");
@@ -175,14 +173,14 @@ app.get("/notes", (req, res) => {
 });
 
 // =========================
-// HEALTH CHECK (OPTIONAL)
+// ROOT
 // =========================
 app.get("/", (req, res) => {
-  res.send("Backend is running ✅");
+  res.send("Backend running ✅");
 });
 
 // =========================
-// START SERVER
+// START
 // =========================
 const PORT = process.env.PORT || 3000;
 
