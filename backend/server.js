@@ -20,7 +20,7 @@ console.log("Server directory:", __dirname);
 const filePath = path.join(__dirname, "purchases.json");
 
 // =========================
-// LOAD OR CREATE PURCHASES
+// LOAD PURCHASES
 // =========================
 let purchases = [];
 
@@ -29,11 +29,9 @@ try {
     purchases = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } else {
     fs.writeFileSync(filePath, JSON.stringify([]));
-    purchases = [];
   }
 } catch (err) {
   console.log("Error loading purchases:", err);
-  purchases = [];
 }
 
 // =========================
@@ -73,7 +71,7 @@ app.post("/create-order", async (req, res) => {
     });
 
   } catch (err) {
-    console.log("Create Order Error:", err);
+    console.log(err);
     res.status(500).json({ error: "Order failed" });
   }
 });
@@ -92,7 +90,7 @@ app.post("/verify-payment", (req, res) => {
     } = req.body;
 
     if (!email || !noteName) {
-      return res.json({ success: false, error: "Missing data" });
+      return res.json({ success: false });
     }
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -106,36 +104,28 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // SAVE PURCHASE
     const exists = purchases.find(
       p => p.email === email && p.noteName === noteName
     );
 
     if (!exists) {
       purchases.push({ email, noteName });
-
       fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
-
-      console.log("Saved purchase:", email, noteName);
     }
 
     res.json({ success: true });
 
   } catch (err) {
-    console.log("Verify Error:", err);
+    console.log(err);
     res.json({ success: false });
   }
 });
 
 // =========================
-// CHECK PURCHASE (optional)
+// CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
-
-  if (!email || !noteName) {
-    return res.json({ purchased: false });
-  }
 
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
@@ -145,19 +135,16 @@ app.get("/check-purchase", (req, res) => {
 });
 
 // =========================
-// SERVE NOTES (IMPORTANT)
+// SERVE NOTES (FIXED)
 // =========================
 app.get("/notes", (req, res) => {
   const email = req.query.email;
   const noteName = decodeURIComponent(req.query.noteName || "");
 
-  console.log("Request:", email, noteName);
-
   if (!email || !noteName) {
     return res.status(400).send("Missing data");
   }
 
-  // check purchase
   const found = purchases.find(
     p => p.email === email && p.noteName === noteName
   );
@@ -166,7 +153,6 @@ app.get("/notes", (req, res) => {
     return res.status(403).send("❌ Not purchased");
   }
 
-  // file mapping
   const fileMap = {
     "English I": "English_I.html",
     "Economics": "Economics.html",
@@ -180,8 +166,6 @@ app.get("/notes", (req, res) => {
   }
 
   const fullPath = path.join(__dirname, "FIRST_Y_SEM_1", fileName);
-
-  console.log("Serving file:", fullPath);
 
   if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
@@ -198,7 +182,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// START SERVER
+// START
 // =========================
 const PORT = process.env.PORT || 3000;
 
