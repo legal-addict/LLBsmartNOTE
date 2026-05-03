@@ -1,5 +1,5 @@
 require("dotenv").config();
-console.log(__dirname);
+
 const express = require("express");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
@@ -10,39 +10,29 @@ const fs = require("fs");
 const app = express();
 
 // =========================
+// DEBUG PATH
+// =========================
+console.log("Server directory:", __dirname);
+
+// =========================
 // LOAD PURCHASES
 // =========================
 let purchases = [];
 
-const filePath = "purchases.json";
+const filePath = path.join(__dirname, "purchases.json");
 
 if (fs.existsSync(filePath)) {
   purchases = JSON.parse(fs.readFileSync(filePath));
 }
 
 // =========================
-// NOTE FILES (MUST MATCH EXACT BUTTON TEXT)
-// =========================
-const noteFiles = {
-  "English I": path.join(__dirname, "FIRST_Y_SEM_1", "English_I.html"),
-  "Economics": path.join(__dirname, "FIRST_Y_SEM_1", "Economics.html"),
-  "LOGIC - I": path.join(__dirname, "FIRST_Y_SEM_1", "LOGIC_I.html")
-};
-return res.sendFile(file);
-
-console.log(purchases);
-
-// =========================
 // MIDDLEWARE
 // =========================
-app.use(cors({
-  origin: "*"
-}));
-
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// RAZORPAY
+// RAZORPAY SETUP
 // =========================
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -68,17 +58,17 @@ app.post("/create-order", async (req, res) => {
 
     res.json({
       key: process.env.RAZORPAY_KEY_ID,
-      order
+      order,
     });
 
   } catch (err) {
-    console.log(err);
+    console.log("Create Order Error:", err);
     res.status(500).json({ error: "Order failed" });
   }
 });
 
 // =========================
-// VERIFY PAYMENT (SAVE FOREVER ACCESS)
+// VERIFY PAYMENT
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
@@ -105,7 +95,7 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // SAVE PURCHASE (BUY ONCE FOREVER)
+    // SAVE PURCHASE
     const exists = purchases.find(
       p => p.email === email && p.noteName === noteName
     );
@@ -114,12 +104,14 @@ app.post("/verify-payment", (req, res) => {
       purchases.push({ email, noteName });
 
       fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
+
+      console.log("Saved purchases:", purchases);
     }
 
     res.json({ success: true });
 
   } catch (err) {
-    console.log(err);
+    console.log("Verify Error:", err);
     res.json({ success: false });
   }
 });
@@ -142,7 +134,7 @@ app.get("/check-purchase", (req, res) => {
 });
 
 // =========================
-// SERVE NOTES (SECURE ACCESS)
+// SERVE NOTES (PROTECTED)
 // =========================
 app.get("/notes", (req, res) => {
   const { email, noteName } = req.query;
@@ -167,17 +159,33 @@ app.get("/notes", (req, res) => {
 
   const fileName = fileMap[noteName];
 
+  if (!fileName) {
+    return res.status(404).send("Invalid note name");
+  }
+
   const fullPath = path.join(__dirname, "FIRST_Y_SEM_1", fileName);
 
-  console.log("Serving:", fullPath);
+  console.log("Serving file:", fullPath);
+
+  if (!fs.existsSync(fullPath)) {
+    return res.status(500).send("File not found on server");
+  }
 
   res.sendFile(fullPath);
 });
+
+// =========================
+// HEALTH CHECK (OPTIONAL)
+// =========================
+app.get("/", (req, res) => {
+  res.send("Backend is running ✅");
+});
+
 // =========================
 // START SERVER
 // =========================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server running on", PORT);
+  console.log("Server running on port", PORT);
 });
