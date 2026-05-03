@@ -128,10 +128,62 @@ app.post("/verify-payment", (req, res) => {
 });
 
 // =========================
-// SERVE NOTES
+// CHECK PURCHASE (optional)
 // =========================
-window.location.href =
-  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;  if (!fs.existsSync(fullPath)) {
+app.get("/check-purchase", (req, res) => {
+  const { email, noteName } = req.query;
+
+  if (!email || !noteName) {
+    return res.json({ purchased: false });
+  }
+
+  const found = purchases.find(
+    p => p.email === email && p.noteName === noteName
+  );
+
+  res.json({ purchased: !!found });
+});
+
+// =========================
+// SERVE NOTES (IMPORTANT)
+// =========================
+app.get("/notes", (req, res) => {
+  const email = req.query.email;
+  const noteName = decodeURIComponent(req.query.noteName || "");
+
+  console.log("Request:", email, noteName);
+
+  if (!email || !noteName) {
+    return res.status(400).send("Missing data");
+  }
+
+  // check purchase
+  const found = purchases.find(
+    p => p.email === email && p.noteName === noteName
+  );
+
+  if (!found) {
+    return res.status(403).send("❌ Not purchased");
+  }
+
+  // file mapping
+  const fileMap = {
+    "English I": "English_I.html",
+    "Economics": "Economics.html",
+    "LOGIC - I": "LOGIC_I.html"
+  };
+
+  const fileName = fileMap[noteName];
+
+  if (!fileName) {
+    return res.status(404).send("Invalid note name");
+  }
+
+  const fullPath = path.join(__dirname, "FIRST_Y_SEM_1", fileName);
+
+  console.log("Serving file:", fullPath);
+
+  if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
   }
 
@@ -146,7 +198,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// START
+// START SERVER
 // =========================
 const PORT = process.env.PORT || 3000;
 
