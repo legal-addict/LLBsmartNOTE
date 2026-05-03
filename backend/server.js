@@ -130,42 +130,8 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 // SERVE NOTES
 // =========================
-app.get("/notes", (req, res) => {
-  const { email, noteName } = req.query;
-
-  console.log("Request:", email, noteName);
-
-  if (!email || !noteName) {
-    return res.status(400).send("Missing data");
-  }
-
-  const found = purchases.find(
-    p => p.email === email && p.noteName === noteName
-  );
-
-  console.log("Purchase found:", found);
-
-  if (!found) {
-    return res.status(403).send("❌ Not purchased");
-  }
-
-  const fileMap = {
-    "English I": "English_I.html",
-    "Economics": "Economics.html",
-    "LOGIC - I": "LOGIC_I.html"
-  };
-
-  const fileName = fileMap[noteName];
-
-  if (!fileName) {
-    return res.status(404).send("Invalid note name");
-  }
-
-  const fullPath = path.join(__dirname, "FIRST_Y_SEM_1", fileName);
-
-  console.log("Serving file:", fullPath);
-
-  if (!fs.existsSync(fullPath)) {
+window.location.href =
+  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;  if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
   }
 
