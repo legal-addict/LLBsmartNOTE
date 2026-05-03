@@ -8,9 +8,7 @@ async function buyNote(noteName, price) {
       localStorage.setItem("email", email);
     }
 
-    // =========================
     // CREATE ORDER
-    // =========================
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -19,14 +17,6 @@ async function buyNote(noteName, price) {
 
     const orderData = await orderRes.json();
 
-    if (!orderData.order) {
-      alert("Order creation failed");
-      return;
-    }
-
-    // =========================
-    // RAZORPAY OPTIONS
-    // =========================
     const options = {
       key: orderData.key,
       amount: orderData.order.amount,
@@ -37,9 +27,6 @@ async function buyNote(noteName, price) {
 
       handler: async function (response) {
 
-        // =========================
-        // VERIFY PAYMENT
-        // =========================
         const verifyRes = await fetch("https://backend-kxr2.onrender.com/verify-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -56,30 +43,32 @@ async function buyNote(noteName, price) {
 
         if (verifyData.success) {
 
-          // =========================
-          // DIRECT REDIRECT TO NOTES
-          // =========================
-          window.location.href =
-            `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
+          // check purchase
+          const check = await fetch(
+            `https://backend-kxr2.onrender.com/check-purchase?email=${email}&noteName=${noteName}`
+          );
+
+          const data = await check.json();
+
+          if (data.purchased) {
+            window.location.href =
+  `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
+                              
+          } else {
+            alert("Payment done but access not found");
+          }
 
         } else {
-          alert("Payment verification failed");
+          alert("Payment failed");
         }
-      },
-
-      theme: {
-        color: "#3399cc"
       }
     };
 
-    // =========================
-    // OPEN PAYMENT POPUP
-    // =========================
     const rzp = new Razorpay(options);
     rzp.open();
 
   } catch (err) {
     console.log(err);
-    alert("Something went wrong");
+    alert("Error occurred");
   }
-}
+} my frntend is correct
