@@ -164,14 +164,8 @@ app.get("/notes", (req, res) => {
   if (!fileName) {
     return res.status(404).send("Invalid note name");
   }
-app.get("/debug-file", (req, res) => {
-  const testPath = path.join(__dirname, "..", "FIRST_Y_SEM_1", "English_I.html");
-
-  res.json({
-    path: testPath,
-    exists: fs.existsSync(testPath)
-  });
-});
+const fullPath = path.join(__dirname, "..", "FIRST_Y_SEM_1", fileName);
+  
   if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
   }
