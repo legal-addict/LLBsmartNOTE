@@ -77,23 +77,62 @@ app.post("/create-order", async (req, res) => {
 
 // =========================
 // VERIFY PAYMENT
-// =========================
-let purchases = {};
+app.post("/verify-payment", (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      email,
+      noteName
+    } = req.body;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expected = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expected !== razorpay_signature) {
+      return res.json({ success: false });
+    }
+
+    if (!purchases[email]) {
+      purchases[email] = [];
+    }
+
+    if (!purchases[email].includes(noteName)) {
+      purchases[email].push(noteName);
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.log(err);
+    res.json({ success: false });
+  }
+});
 // =========================
 // CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
 
- const userNotes = purchases[email] || [];
+  const userNotes = purchases[email] || [];
+
+  res.json({
+    purchased: userNotes.includes(noteName)
+  });
+});
+
+const userNotes = purchases[email] || [];
 
 if (!userNotes.includes(noteName)) {
   return res.status(403).send("❌ Not purchased");
-}
-  res.json({ purchased: !!found });
-});
-
-// =========================
+}// =========================
 // SERVE NOTES (FIXED)
 // =========================
 app.get("/notes", (req, res) => {
