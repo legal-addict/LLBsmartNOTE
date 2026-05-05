@@ -22,8 +22,7 @@ const filePath = path.join(__dirname, "purchases.json");
 // =========================
 // LOAD PURCHASES
 // =========================
-let purchases = [];
-
+let purchases = {};
 try {
   if (fs.existsSync(filePath)) {
     purchases = JSON.parse(fs.readFileSync(filePath, "utf-8"));
@@ -79,58 +78,18 @@ app.post("/create-order", async (req, res) => {
 // =========================
 // VERIFY PAYMENT
 // =========================
-app.post("/verify-payment", (req, res) => {
-  try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      email,
-      noteName
-    } = req.body;
-
-    if (!email || !noteName) {
-      return res.json({ success: false });
-    }
-
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-    const expected = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
-
-    if (expected !== razorpay_signature) {
-      return res.json({ success: false });
-    }
-
-    const exists = purchases.find(
-      p => p.email === email && p.noteName === noteName
-    );
-
-    if (!exists) {
-      purchases.push({ email, noteName });
-      fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
-    }
-
-    res.json({ success: true });
-
-  } catch (err) {
-    console.log(err);
-    res.json({ success: false });
-  }
-});
-
+let purchases = {};
 // =========================
 // CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
   const { email, noteName } = req.query;
 
-  const found = purchases.find(
-    p => p.email === email && p.noteName === noteName
-  );
+ const userNotes = purchases[email] || [];
 
+if (!userNotes.includes(noteName)) {
+  return res.status(403).send("❌ Not purchased");
+}
   res.json({ purchased: !!found });
 });
 
