@@ -1,11 +1,11 @@
 window.buyNote = async function(noteName, price) {
   try {
-    let email = localStorage.getItem("email");
+    // ✅ AUTO USER ID (NO PROMPT)
+    let userId = localStorage.getItem("userId");
 
-    if (!email) {
-      email = prompt("Enter email:");
-      if (!email) return;
-      localStorage.setItem("email", email);
+    if (!userId) {
+      userId = crypto.randomUUID();
+      localStorage.setItem("userId", userId);
     }
 
     const orderRes = await fetch("https://backend-kxr2.onrender.com/create-order", {
@@ -38,7 +38,7 @@ window.buyNote = async function(noteName, price) {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
-            email,
+            userId,
             noteName
           })
         });
@@ -47,7 +47,7 @@ window.buyNote = async function(noteName, price) {
 
         if (verifyData.success) {
           window.location.href =
-            `https://backend-kxr2.onrender.com/notes?email=${email}&noteName=${encodeURIComponent(noteName)}`;
+            `https://backend-kxr2.onrender.com/notes?userId=${userId}&noteName=${encodeURIComponent(noteName)}`;
         } else {
           alert("Payment verification failed");
         }
