@@ -20,7 +20,7 @@ console.log("Server directory:", __dirname);
 const filePath = path.join(__dirname, "purchases.json");
 
 // =========================
-// LOAD PURCHASES (OBJECT SYSTEM)
+// LOAD PURCHASES
 // =========================
 let purchases = {};
 
@@ -79,7 +79,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT (SAVE FOREVER ACCESS)
+// VERIFY PAYMENT (FIXED)
 // =========================
 app.post("/verify-payment", (req, res) => {
   try {
@@ -87,7 +87,7 @@ app.post("/verify-payment", (req, res) => {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      email,
+      userId,
       noteName
     } = req.body;
 
@@ -102,12 +102,12 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    if (!purchases[email]) {
-      purchases[email] = [];
+    if (!purchases[userId]) {
+      purchases[userId] = [];
     }
 
-    if (!purchases[email].includes(noteName)) {
-      purchases[email].push(noteName);
+    if (!purchases[userId].includes(noteName)) {
+      purchases[userId].push(noteName);
     }
 
     fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
@@ -124,9 +124,9 @@ app.post("/verify-payment", (req, res) => {
 // CHECK PURCHASE
 // =========================
 app.get("/check-purchase", (req, res) => {
-  const { email, noteName } = req.query;
+  const { userId, noteName } = req.query;
 
-  const userNotes = purchases[email] || [];
+  const userNotes = purchases[userId] || [];
 
   res.json({
     purchased: userNotes.includes(noteName)
@@ -137,14 +137,14 @@ app.get("/check-purchase", (req, res) => {
 // NOTES ACCESS (PROTECTED)
 // =========================
 app.get("/notes", (req, res) => {
-  const email = req.query.email;
+  const { userId } = req.query;
   const noteName = decodeURIComponent(req.query.noteName || "");
 
-  if (!email || !noteName) {
+  if (!userId || !noteName) {
     return res.status(400).send("Missing data");
   }
 
-  const userNotes = purchases[email] || [];
+  const userNotes = purchases[userId] || [];
 
   if (!userNotes.includes(noteName)) {
     return res.status(403).send("❌ Not purchased");
