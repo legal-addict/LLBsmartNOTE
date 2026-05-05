@@ -164,8 +164,7 @@ app.get("/notes", (req, res) => {
   if (!fileName) {
     return res.status(404).send("Invalid note name");
   }
-  const fullPath = path.join(process.cwd(), "FIRST_Y_SEM_1", fileName);
-  
+  const fullPath = path.join(__dirname, "..", "FIRST_Y_SEM_1", fileName);
   
   if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
