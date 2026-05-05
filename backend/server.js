@@ -20,17 +20,20 @@ console.log("Server directory:", __dirname);
 const filePath = path.join(__dirname, "purchases.json");
 
 // =========================
-// LOAD PURCHASES
+// LOAD PURCHASES (OBJECT SYSTEM)
 // =========================
 let purchases = {};
+
 try {
   if (fs.existsSync(filePath)) {
     purchases = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } else {
-    fs.writeFileSync(filePath, JSON.stringify([]));
+    purchases = {};
+    fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
   }
 } catch (err) {
   console.log("Error loading purchases:", err);
+  purchases = {};
 }
 
 // =========================
@@ -76,7 +79,8 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT
+// VERIFY PAYMENT (SAVE FOREVER ACCESS)
+// =========================
 app.post("/verify-payment", (req, res) => {
   try {
     const {
@@ -115,6 +119,7 @@ app.post("/verify-payment", (req, res) => {
     res.json({ success: false });
   }
 });
+
 // =========================
 // CHECK PURCHASE
 // =========================
@@ -128,12 +133,8 @@ app.get("/check-purchase", (req, res) => {
   });
 });
 
-const userNotes = purchases[email] || [];
-
-if (!userNotes.includes(noteName)) {
-  return res.status(403).send("❌ Not purchased");
-}// =========================
-// SERVE NOTES (FIXED)
+// =========================
+// NOTES ACCESS (PROTECTED)
 // =========================
 app.get("/notes", (req, res) => {
   const email = req.query.email;
@@ -143,18 +144,16 @@ app.get("/notes", (req, res) => {
     return res.status(400).send("Missing data");
   }
 
-  const found = purchases.find(
-    p => p.email === email && p.noteName === noteName
-  );
+  const userNotes = purchases[email] || [];
 
-  if (!found) {
+  if (!userNotes.includes(noteName)) {
     return res.status(403).send("❌ Not purchased");
   }
 
   const fileMap = {
     "English I": "English_I.html",
     "Economics": "Economics.html",
-    "LOGIC - I": "LOGIC_I.html"
+    "LOGIC - I": "LOGIC - I.html"
   };
 
   const fileName = fileMap[noteName];
@@ -162,8 +161,9 @@ app.get("/notes", (req, res) => {
   if (!fileName) {
     return res.status(404).send("Invalid note name");
   }
+
   const fullPath = path.join(__dirname, "..", "FIRST_Y_SEM_1", fileName);
-  
+
   if (!fs.existsSync(fullPath)) {
     return res.status(500).send("File not found on server");
   }
