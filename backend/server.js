@@ -198,23 +198,20 @@ app.post("/verify-payment", (req, res) => {
       purchases[userId] = [];
     }
 
-    // AVOID DUPLICATE PURCHASE
+    // CREATE USER PURCHASE ARRAY
+if (!purchases[userId]) {
+  purchases[userId] = [];
+}
 
-    if (
-      purchases[userId].includes(noteName)
-    ) {
+// AVOID DUPLICATE PURCHASE (SAFE CHECK)
+if (!purchases[userId].includes(noteName)) {
+  purchases[userId].push(noteName);
+  savePurchases();
+}
 
-      return res.json({
-        success: true,
-        alreadyPurchased: true
-      });
-    }
-
-    // SAVE PURCHASE
-
-    purchases[userId].push(noteName);
-
-    savePurchases();
+return res.json({
+  success: true
+});
 
     res.json({
       success: true
