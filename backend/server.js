@@ -133,31 +133,19 @@ app.post("/create-order", async (req, res) => {
   }
 });
 
-// =========================
-// VERIFY PAYMENT
-// =========================
-
 app.post("/verify-payment", (req, res) => {
 
   try {
 
     const {
-
       razorpay_order_id,
-
       razorpay_payment_id,
-
       razorpay_signature,
-
       userId,
-
       noteName
-
     } = req.body;
 
-    // =========================
     // VALIDATION
-    // =========================
 
     if (
       !razorpay_order_id ||
@@ -167,73 +155,75 @@ app.post("/verify-payment", (req, res) => {
       !noteName
     ) {
 
-      return res.status(400).json({
-        success: false,
-        error: "Missing fields"
+      return res.json({
+        success: false
       });
     }
 
-    // =========================
     // VERIFY SIGNATURE
-    // =========================
 
-    const body =
-      razorpay_order_id + "|" + razorpay_payment_id;
-
-    const expectedSignature = crypto
+    const generatedSignature = crypto
       .createHmac(
         "sha256",
         process.env.RAZORPAY_KEY_SECRET
       )
-      .update(body.toString())
+      .update(
+        razorpay_order_id +
+        "|" +
+        razorpay_payment_id
+      )
       .digest("hex");
 
-    // =========================
-    // INVALID PAYMENT
-    // =========================
+    // INVALID SIGNATURE
 
-    if (expectedSignature !== razorpay_signature) {
+    if (
+      generatedSignature !==
+      razorpay_signature
+    ) {
 
-      return res.status(400).json({
-        success: false,
-        error: "Invalid signature"
+      return res.json({
+        success: false
       });
     }
 
-    // =========================
     // CREATE USER PURCHASE ARRAY
-    // =========================
 
     if (!purchases[userId]) {
 
       purchases[userId] = [];
     }
 
-    // =========================
-    // PREVENT DUPLICATE PURCHASE
-    // =========================
+    // AVOID DUPLICATE PURCHASE
 
-    if (!purchases[userId].includes(noteName)) {
+    if (
+      purchases[userId].includes(noteName)
+    ) {
 
-      purchases[userId].push(noteName);
-
-      savePurchases();
+      return res.json({
+        success: true,
+        alreadyPurchased: true
+      });
     }
 
-    return res.json({
+    // SAVE PURCHASE
+
+    purchases[userId].push(noteName);
+
+    savePurchases();
+
+    res.json({
       success: true
     });
 
   } catch (err) {
 
-    console.log("Verification error:", err);
+    console.log(err);
 
-    return res.status(500).json({
+    res.json({
       success: false
     });
   }
 });
-
 // =========================
 // CHECK PURCHASE
 // =========================
