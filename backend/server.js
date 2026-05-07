@@ -10,163 +10,317 @@ const fs = require("fs");
 const app = express();
 
 // =========================
-// DEBUG
+// MIDDLEWARE
 // =========================
-console.log("Server directory:", __dirname);
+
+app.use(cors({
+  origin: "*"
+}));
+
+app.use(express.json());
 
 // =========================
-// FILE PATH
+// PURCHASE FILE
 // =========================
+
 const filePath = path.join(__dirname, "purchases.json");
+
+let purchases = {};
 
 // =========================
 // LOAD PURCHASES
 // =========================
-let purchases = {};
 
 try {
+
   if (fs.existsSync(filePath)) {
-    purchases = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+
+    purchases = JSON.parse(
+      fs.readFileSync(filePath, "utf-8")
+    );
+
   } else {
-    purchases = {};
-    fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
+
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({}, null, 2)
+    );
   }
+
 } catch (err) {
-  console.log("Error loading purchases:", err);
+
+  console.log(err);
+
   purchases = {};
 }
 
 // =========================
-// MIDDLEWARE
+// SAVE PURCHASES
 // =========================
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+
+function savePurchases() {
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(purchases, null, 2)
+  );
+}
 
 // =========================
 // RAZORPAY
 // =========================
+
 const razorpay = new Razorpay({
+
   key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+
+  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
 // =========================
 // CREATE ORDER
 // =========================
+
 app.post("/create-order", async (req, res) => {
+
   try {
+
     const amount = Number(req.body.amount);
 
-    if (!amount) {
-      return res.status(400).json({ error: "Invalid amount" });
+    if (!amount || amount < 1) {
+
+      return res.status(400).json({
+        error: "Invalid amount"
+      });
     }
 
     const order = await razorpay.orders.create({
+
       amount,
+
       currency: "INR",
-      receipt: "rcpt_" + Date.now(),
+
+      receipt: "rcpt_" + Date.now()
     });
 
     res.json({
+
       key: process.env.RAZORPAY_KEY_ID,
-      order,
+
+      order
     });
 
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ error: "Order failed" });
+
+    res.status(500).json({
+      error: "Order failed"
+    });
   }
 });
 
 // =========================
-// VERIFY PAYMENT (FIXED)
+// VERIFY PAYMENT
 // =========================
+
 app.post("/verify-payment", (req, res) => {
+
   try {
+
     const {
+
       razorpay_order_id,
+
       razorpay_payment_id,
+
       razorpay_signature,
-      userId,
+
+      email,
+
       noteName
+
     } = req.body;
 
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    // =========================
+    // VALIDATION
+    // =========================
 
-    const expected = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
+    if (
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature ||
+      !email ||
+      !noteName
+    ) {
+
+      return res.json({
+        success: false
+      });
+    }
+
+    // =========================
+    // VERIFY SIGNATURE
+    // =========================
+
+    const body =
+      razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac(
+        "sha256",
+        process.env.RAZORPAY_KEY_SECRET
+      )
+      .update(body.toString())
       .digest("hex");
 
-    if (expected !== razorpay_signature) {
-      return res.json({ success: false });
+    // =========================
+    // INVALID PAYMENT
+    // =========================
+
+    if (expectedSignature !== razorpay_signature) {
+
+      return res.json({
+        success: false
+      });
     }
 
-    if (!purchases[userId]) {
-      purchases[userId] = [];
+    // =========================
+    // CREATE USER
+    // =========================
+
+    if (!purchases[email]) {
+
+      purchases[email] = [];
     }
 
-    if (!purchases[userId].includes(noteName)) {
-      purchases[userId].push(noteName);
+    // =========================
+    // PREVENT REPURCHASE
+    // =========================
+
+    if (!purchases[email].includes(noteName)) {
+
+      purchases[email].push(noteName);
+
+      savePurchases();
     }
 
-    fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
-
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
 
   } catch (err) {
+
     console.log(err);
-    res.json({ success: false });
+
+    res.json({
+      success: false
+    });
   }
 });
 
 // =========================
 // CHECK PURCHASE
 // =========================
-app.get("/check-purchase", (req, res) => {
-  const { userId, noteName } = req.query;
 
-  const userNotes = purchases[userId] || [];
+app.get("/check-purchase", (req, res) => {
+
+  const { email, noteName } = req.query;
+
+  if (!email || !noteName) {
+
+    return res.json({
+      purchased: false
+    });
+  }
+
+  const userNotes = purchases[email] || [];
 
   res.json({
+
     purchased: userNotes.includes(noteName)
   });
 });
 
 // =========================
-// NOTES ACCESS (PROTECTED)
+// NOTES ACCESS
 // =========================
-app.get("/notes", (req, res) => {
-  const { userId } = req.query;
-  const noteName = decodeURIComponent(req.query.noteName || "");
 
-  if (!userId || !noteName) {
+app.get("/notes", (req, res) => {
+
+  const email = req.query.email;
+
+  const noteName = decodeURIComponent(
+    req.query.noteName || ""
+  );
+
+  // =========================
+  // VALIDATION
+  // =========================
+
+  if (!email || !noteName) {
+
     return res.status(400).send("Missing data");
   }
 
-  const userNotes = purchases[userId] || [];
+  const userNotes = purchases[email] || [];
+
+  // =========================
+  // NOT PURCHASED
+  // =========================
 
   if (!userNotes.includes(noteName)) {
-    return res.status(403).send("❌ Not purchased");
+
+    return res.status(403).send("❌ Access denied");
   }
 
+  // =========================
+  // FILE MAP
+  // =========================
+
   const fileMap = {
+
     "English I": "English_I.html",
+
     "Economics": "Economics.html",
+
     "LOGIC - I": "LOGIC - I.html"
   };
 
   const fileName = fileMap[noteName];
 
   if (!fileName) {
-    return res.status(404).send("Invalid note name");
+
+    return res.status(404).send("Invalid note");
   }
 
-  const fullPath = path.join(__dirname, "..", "FIRST_Y_SEM_1", fileName);
+  // =========================
+  // FILE PATH
+  // =========================
+
+  const fullPath = path.join(
+
+    __dirname,
+
+    "..",
+
+    "FIRST_Y_SEM_1",
+
+    fileName
+  );
+
+  // =========================
+  // FILE EXISTS
+  // =========================
 
   if (!fs.existsSync(fullPath)) {
-    return res.status(500).send("File not found on server");
+
+    return res.status(404).send("File missing");
   }
+
+  // =========================
+  // SEND FILE
+  // =========================
 
   res.sendFile(fullPath);
 });
@@ -174,15 +328,19 @@ app.get("/notes", (req, res) => {
 // =========================
 // ROOT
 // =========================
+
 app.get("/", (req, res) => {
+
   res.send("Backend running ✅");
 });
 
 // =========================
 // START
 // =========================
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
+
   console.log("Server running on port", PORT);
 });
