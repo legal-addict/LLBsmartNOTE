@@ -87,6 +87,11 @@ const razorpay = new Razorpay({
 // =========================
 // CREATE ORDER
 // =========================
+if (window.paymentProcessing) {
+  return;
+}
+
+window.paymentProcessing = true;
 
 app.post("/create-order", async (req, res) => {
 
