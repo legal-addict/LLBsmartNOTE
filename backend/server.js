@@ -127,21 +127,13 @@ app.post("/create-order", async (req, res) => {
 app.post("/verify-payment", (req, res) => {
 
   try {
-
-    const {
-
-      razorpay_order_id,
-
-      razorpay_payment_id,
-
-      razorpay_signature,
-
-      email,
-
-      noteName
-
-    } = req.body;
-
+const {
+  razorpay_order_id,
+  razorpay_payment_id,
+  razorpay_signature,
+  userId,
+  noteName
+} = req.body;
     // =========================
     // VALIDATION
     // =========================
@@ -150,7 +142,7 @@ app.post("/verify-payment", (req, res) => {
       !razorpay_order_id ||
       !razorpay_payment_id ||
       !razorpay_signature ||
-      !email ||
+      !userId ||
       !noteName
     ) {
 
@@ -189,18 +181,18 @@ app.post("/verify-payment", (req, res) => {
     // CREATE USER
     // =========================
 
-    if (!purchases[email]) {
+    if (!purchases[userId]) {
 
-      purchases[email] = [];
+      purchases[userId] = [];
     }
 
     // =========================
     // PREVENT REPURCHASE
     // =========================
 
-    if (!purchases[email].includes(noteName)) {
+    if (!purchases[userId].includes(noteName)) {
 
-      purchases[email].push(noteName);
+      purchases[userId].push(noteName);
 
       savePurchases();
     }
@@ -225,16 +217,16 @@ app.post("/verify-payment", (req, res) => {
 
 app.get("/check-purchase", (req, res) => {
 
-  const { email, noteName } = req.query;
+  const { userId, noteName } = req.query;
 
-  if (!email || !noteName) {
+  if (!userId || !noteName) {
 
     return res.json({
       purchased: false
     });
   }
 
-  const userNotes = purchases[email] || [];
+  const userNotes = purchases[userId] || [];
 
   res.json({
 
@@ -248,7 +240,7 @@ app.get("/check-purchase", (req, res) => {
 
 app.get("/notes", (req, res) => {
 
-  const email = req.query.email;
+  const userId = req.query.userId;
 
   const noteName = decodeURIComponent(
     req.query.noteName || ""
@@ -258,12 +250,12 @@ app.get("/notes", (req, res) => {
   // VALIDATION
   // =========================
 
-  if (!email || !noteName) {
+  if (!userId || !noteName) {
 
     return res.status(400).send("Missing data");
   }
 
-  const userNotes = purchases[email] || [];
+  const userNotes = purchases[userId] || [];
 
   // =========================
   // NOT PURCHASED
