@@ -1395,6 +1395,69 @@ document.addEventListener("keydown", e => {
   }
 });
 
+
+
+
+
+
+
+
+  
+  let attempts = localStorage.getItem('attempts')
+    ? parseInt(localStorage.getItem('attempts'))
+    : 0;
+
+  // ✅ Only lock if attempts are actually 2+
+  if (attempts >= 2) {
+    applyLock();
+  }
+
+  document.addEventListener('keyup', (e) => {
+
+    if (e.key !== 'PrintScreen') return;
+
+    attempts++;
+    localStorage.setItem('attempts', attempts);
+
+    // 🟡 First time → warning only
+    if (attempts === 1) {
+      alert('⚠️ Warning: Screenshot detected!');
+    }
+
+    // 🔴 Second time → lock
+    else if (attempts === 2) {
+      alert('🚫 Second attempt! Access locked.');
+      applyLock();
+    }
+  });
+
+  function applyLock() {
+    if (document.getElementById('lock-screen')) return;
+
+    const div = document.createElement('div');
+    div.id = 'lock-screen';
+
+    Object.assign(div.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
+      background: 'black',
+      backdropFilter: 'blur(50px)',
+      zIndex: '999999',
+      pointerEvents: 'all'
+    });
+
+    div.innerHTML = `
+      <h1 style="color:white;text-align:center;margin-top:40vh;">
+        🔒 Access Locked
+      </h1>
+    `;
+
+    document.body.appendChild(div);
+  }
+
 </script>
 </body>
 </html>
