@@ -36,7 +36,7 @@ try {
   if (fs.existsSync(filePath)) {
 
     purchases = JSON.parse(
-      fs.readFileSync(filePath, "utf-8")
+      fs.readFileSync(filePath, "utf8")
     );
 
   } else {
@@ -49,7 +49,7 @@ try {
 
 } catch (err) {
 
-  console.log(err);
+  console.log("Purchase load error:", err);
 
   purchases = {};
 }
@@ -60,10 +60,17 @@ try {
 
 function savePurchases() {
 
-  fs.writeFileSync(
-    filePath,
-    JSON.stringify(purchases, null, 2)
-  );
+  try {
+
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify(purchases, null, 2)
+    );
+
+  } catch (err) {
+
+    console.log("Save error:", err);
+  }
 }
 
 // =========================
@@ -87,9 +94,10 @@ app.post("/create-order", async (req, res) => {
 
     const amount = Number(req.body.amount);
 
-    if (!amount || amount < 1) {
+    if (!amount || amount <= 0) {
 
       return res.status(400).json({
+        success: false,
         error: "Invalid amount"
       });
     }
@@ -100,10 +108,12 @@ app.post("/create-order", async (req, res) => {
 
       currency: "INR",
 
-      receipt: "rcpt_" + Date.now()
+      receipt: "receipt_" + Date.now()
     });
 
-    res.json({
+    return res.json({
+
+      success: true,
 
       key: process.env.RAZORPAY_KEY_ID,
 
@@ -112,10 +122,13 @@ app.post("/create-order", async (req, res) => {
 
   } catch (err) {
 
-    console.log(err);
+    console.log("Create order error:", err);
 
-    res.status(500).json({
-      error: "Order failed"
+    return res.status(500).json({
+
+      success: false,
+
+      error: "Order creation failed"
     });
   }
 });
@@ -127,13 +140,21 @@ app.post("/create-order", async (req, res) => {
 app.post("/verify-payment", (req, res) => {
 
   try {
-const {
-  razorpay_order_id,
-  razorpay_payment_id,
-  razorpay_signature,
-  userId,
-  noteName
-} = req.body;
+
+    const {
+
+      razorpay_order_id,
+
+      razorpay_payment_id,
+
+      razorpay_signature,
+
+      userId,
+
+      noteName
+
+    } = req.body;
+
     // =========================
     // VALIDATION
     // =========================
@@ -146,8 +167,9 @@ const {
       !noteName
     ) {
 
-      return res.json({
-        success: false
+      return res.status(400).json({
+        success: false,
+        error: "Missing fields"
       });
     }
 
@@ -172,13 +194,14 @@ const {
 
     if (expectedSignature !== razorpay_signature) {
 
-      return res.json({
-        success: false
+      return res.status(400).json({
+        success: false,
+        error: "Invalid signature"
       });
     }
 
     // =========================
-    // CREATE USER
+    // CREATE USER PURCHASE ARRAY
     // =========================
 
     if (!purchases[userId]) {
@@ -187,7 +210,7 @@ const {
     }
 
     // =========================
-    // PREVENT REPURCHASE
+    // PREVENT DUPLICATE PURCHASE
     // =========================
 
     if (!purchases[userId].includes(noteName)) {
@@ -197,15 +220,15 @@ const {
       savePurchases();
     }
 
-    res.json({
+    return res.json({
       success: true
     });
 
   } catch (err) {
 
-    console.log(err);
+    console.log("Verification error:", err);
 
-    res.json({
+    return res.status(500).json({
       success: false
     });
   }
@@ -217,21 +240,32 @@ const {
 
 app.get("/check-purchase", (req, res) => {
 
-  const { userId, noteName } = req.query;
+  try {
 
-  if (!userId || !noteName) {
+    const { userId, noteName } = req.query;
+
+    if (!userId || !noteName) {
+
+      return res.json({
+        purchased: false
+      });
+    }
+
+    const userNotes = purchases[userId] || [];
+
+    return res.json({
+
+      purchased: userNotes.includes(noteName)
+    });
+
+  } catch (err) {
+
+    console.log("Check purchase error:", err);
 
     return res.json({
       purchased: false
     });
   }
-
-  const userNotes = purchases[userId] || [];
-
-  res.json({
-
-    purchased: userNotes.includes(noteName)
-  });
 });
 
 // =========================
@@ -240,81 +274,90 @@ app.get("/check-purchase", (req, res) => {
 
 app.get("/notes", (req, res) => {
 
-  const userId = req.query.userId;
+  try {
 
-  const noteName = decodeURIComponent(
-    req.query.noteName || ""
-  );
+    const userId = req.query.userId;
 
-  // =========================
-  // VALIDATION
-  // =========================
+    const noteName = decodeURIComponent(
+      req.query.noteName || ""
+    );
 
-  if (!userId || !noteName) {
+    // =========================
+    // VALIDATION
+    // =========================
 
-    return res.status(400).send("Missing data");
+    if (!userId || !noteName) {
+
+      return res.status(400).send("Missing data");
+    }
+
+    const userNotes = purchases[userId] || [];
+
+    // =========================
+    // ACCESS CHECK
+    // =========================
+
+    if (!userNotes.includes(noteName)) {
+
+      return res.status(403).send("❌ Access denied");
+    }
+
+    // =========================
+    // FILE MAP
+    // =========================
+
+    const fileMap = {
+
+      "English I": "English_I.html",
+
+      "Economics": "Economics.html",
+
+      "LOGIC - I": "LOGIC - I.html"
+    };
+
+    const fileName = fileMap[noteName];
+
+    if (!fileName) {
+
+      return res.status(404).send("Invalid note");
+    }
+
+    // =========================
+    // FILE PATH
+    // =========================
+
+    const fullPath = path.join(
+
+      __dirname,
+
+      "..",
+
+      "FIRST_Y_SEM_1",
+
+      fileName
+    );
+
+    // =========================
+    // FILE EXISTS
+    // =========================
+
+    if (!fs.existsSync(fullPath)) {
+
+      return res.status(404).send("File missing");
+    }
+
+    // =========================
+    // SEND FILE
+    // =========================
+
+    return res.sendFile(fullPath);
+
+  } catch (err) {
+
+    console.log("Notes route error:", err);
+
+    return res.status(500).send("Server error");
   }
-
-  const userNotes = purchases[userId] || [];
-
-  // =========================
-  // NOT PURCHASED
-  // =========================
-
-  if (!userNotes.includes(noteName)) {
-
-    return res.status(403).send("❌ Access denied");
-  }
-
-  // =========================
-  // FILE MAP
-  // =========================
-
-  const fileMap = {
-
-    "English I": "English_I.html",
-
-    "Economics": "Economics.html",
-
-    "LOGIC - I": "LOGIC - I.html"
-  };
-
-  const fileName = fileMap[noteName];
-
-  if (!fileName) {
-
-    return res.status(404).send("Invalid note");
-  }
-
-  // =========================
-  // FILE PATH
-  // =========================
-
-  const fullPath = path.join(
-
-    __dirname,
-
-    "..",
-
-    "FIRST_Y_SEM_1",
-
-    fileName
-  );
-
-  // =========================
-  // FILE EXISTS
-  // =========================
-
-  if (!fs.existsSync(fullPath)) {
-
-    return res.status(404).send("File missing");
-  }
-
-  // =========================
-  // SEND FILE
-  // =========================
-
-  res.sendFile(fullPath);
 });
 
 // =========================
@@ -327,7 +370,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// START
+// START SERVER
 // =========================
 
 const PORT = process.env.PORT || 3000;
