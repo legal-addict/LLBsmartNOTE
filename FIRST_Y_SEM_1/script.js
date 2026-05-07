@@ -3,26 +3,20 @@ window.buyNote = async function(noteName, price) {
   try {
 
     // =========================
-    // USER ID
+    // STABLE USER ID
     // =========================
 
     let userId = localStorage.getItem("userId");
 
     if (!userId) {
 
-      userId = btoa(
-        navigator.userAgent +
-        "_" +
-        screen.width +
-        "_" +
-        screen.height
-      );
+      userId = crypto.randomUUID();
 
       localStorage.setItem("userId", userId);
     }
 
     // =========================
-    // CHECK EXISTING PURCHASE
+    // CHECK PURCHASE FIRST
     // =========================
 
     const checkRes = await fetch(
@@ -47,6 +41,16 @@ window.buyNote = async function(noteName, price) {
     }
 
     // =========================
+    // PREVENT DOUBLE CLICK
+    // =========================
+
+    if (window.paymentProcessing) {
+      return;
+    }
+
+    window.paymentProcessing = true;
+
+    // =========================
     // CREATE ORDER
     // =========================
 
@@ -67,19 +71,15 @@ window.buyNote = async function(noteName, price) {
 
     if (!orderRes.ok) {
 
+      window.paymentProcessing = false;
+
       throw new Error("Order creation failed");
     }
 
     const orderData = await orderRes.json();
 
-    if (!orderData.order || !orderData.key) {
-
-      alert("Order failed");
-      return;
-    }
-
     // =========================
-    // RAZORPAY
+    // RAZORPAY OPTIONS
     // =========================
 
     const options = {
@@ -99,10 +99,6 @@ window.buyNote = async function(noteName, price) {
       handler: async function(response) {
 
         try {
-
-          // =========================
-          // VERIFY PAYMENT
-          // =========================
 
           const verifyRes = await fetch(
             "https://backend-kxr2.onrender.com/verify-payment",
@@ -131,17 +127,10 @@ window.buyNote = async function(noteName, price) {
             }
           );
 
-          if (!verifyRes.ok) {
-
-            throw new Error("Verification failed");
-          }
-
           const verifyData =
             await verifyRes.json();
 
-          // =========================
-          // PAYMENT SUCCESS
-          // =========================
+          window.paymentProcessing = false;
 
           if (verifyData.success) {
 
@@ -158,12 +147,18 @@ window.buyNote = async function(noteName, price) {
 
           console.error(err);
 
+          window.paymentProcessing = false;
+
           alert("Verification error");
         }
       },
 
-      prefill: {
-        name: "Legal Addict User"
+      modal: {
+
+        ondismiss: function() {
+
+          window.paymentProcessing = false;
+        }
       },
 
       theme: {
@@ -173,13 +168,11 @@ window.buyNote = async function(noteName, price) {
 
     const rzp = new Razorpay(options);
 
-    // =========================
-    // PAYMENT FAILED
-    // =========================
-
     rzp.on("payment.failed", function(response) {
 
       console.error(response.error);
+
+      window.paymentProcessing = false;
 
       alert(
         response.error.description ||
@@ -192,6 +185,8 @@ window.buyNote = async function(noteName, price) {
   } catch (err) {
 
     console.error(err);
+
+    window.paymentProcessing = false;
 
     alert("Something went wrong");
   }
