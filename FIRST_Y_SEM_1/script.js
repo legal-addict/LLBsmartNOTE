@@ -4,8 +4,13 @@ window.buyNote = async function(noteName, price) {
     // AUTO USER ID
     let userId = localStorage.getItem("userId");
 
-    if (!userId) {
-      userId = crypto.randomUUID();
+    if (!userId) 
+    {userId = btoa(
+  navigator.userAgent + "_" +
+  screen.width + "_" +
+  screen.height
+);
+                  
       localStorage.setItem("userId", userId);
     }
 
