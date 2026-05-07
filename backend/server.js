@@ -17,7 +17,7 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// PURCHASE STORAGE
+// FILE STORAGE
 // =========================
 
 const filePath = path.join(__dirname, "purchases.json");
@@ -89,6 +89,7 @@ app.post("/create-order", async (req, res) => {
 
   } catch (err) {
     console.log("Create order error:", err);
+
     return res.status(500).json({
       success: false,
       error: "Order creation failed"
@@ -110,7 +111,6 @@ app.post("/verify-payment", (req, res) => {
       noteName
     } = req.body;
 
-    // VALIDATION
     if (
       !razorpay_order_id ||
       !razorpay_payment_id ||
@@ -121,7 +121,6 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // VERIFY SIGNATURE
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -131,31 +130,16 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // INIT USER STRUCTURE
+    // INIT USER
     if (!purchases[userId]) {
-      purchases[userId] = {
-        notes: [],
-        payments: []
-      };
+      purchases[userId] = [];
     }
 
-    // PREVENT DOUBLE PAYMENT PROCESSING
-    if (purchases[userId].payments.includes(razorpay_payment_id)) {
-      return res.json({
-        success: true,
-        alreadyProcessed: true
-      });
+    // PREVENT DUPLICATE
+    if (!purchases[userId].includes(noteName)) {
+      purchases[userId].push(noteName);
+      savePurchases();
     }
-
-    // SAVE PAYMENT ID
-    purchases[userId].payments.push(razorpay_payment_id);
-
-    // SAVE NOTE ACCESS (FOREVER ACCESS)
-    if (!purchases[userId].notes.includes(noteName)) {
-      purchases[userId].notes.push(noteName);
-    }
-
-    savePurchases();
 
     return res.json({ success: true });
 
@@ -176,14 +160,10 @@ app.get("/check-purchase", (req, res) => {
     return res.json({ purchased: false });
   }
 
-  const user = purchases[userId];
-
-  if (!user) {
-    return res.json({ purchased: false });
-  }
+  const userNotes = purchases[userId] || [];
 
   return res.json({
-    purchased: user.notes?.includes(noteName) || false
+    purchased: userNotes.includes(noteName)
   });
 });
 
@@ -200,9 +180,9 @@ app.get("/notes", (req, res) => {
       return res.status(400).send("Missing data");
     }
 
-    const user = purchases[userId];
+    const userNotes = purchases[userId] || [];
 
-    if (!user || !user.notes.includes(noteName)) {
+    if (!userNotes.includes(noteName)) {
       return res.status(403).send("❌ Access denied");
     }
 
