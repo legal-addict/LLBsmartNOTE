@@ -89,7 +89,6 @@ app.post("/create-order", async (req, res) => {
 
   } catch (err) {
     console.log("Create order error:", err);
-
     return res.status(500).json({
       success: false,
       error: "Order creation failed"
@@ -98,7 +97,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT
+// VERIFY PAYMENT (FIXED)
 // =========================
 
 app.post("/verify-payment", (req, res) => {
@@ -122,7 +121,7 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // SIGNATURE CHECK
+    // VERIFY SIGNATURE
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -132,20 +131,33 @@ app.post("/verify-payment", (req, res) => {
       return res.json({ success: false });
     }
 
-    // INIT USER
+    // INIT USER STRUCTURE
     if (!purchases[userId]) {
-      purchases[userId] = [];
+      purchases[userId] = {
+        notes: [],
+        payments: []
+      };
     }
 
-    // STORE ONLY ONCE
-    if (!purchases[userId].includes(noteName)) {
-      purchases[userId].push(noteName);
-      savePurchases();
+    // PREVENT DOUBLE PAYMENT PROCESSING
+    if (purchases[userId].payments.includes(razorpay_payment_id)) {
+      return res.json({
+        success: true,
+        alreadyProcessed: true
+      });
     }
 
-    return res.json({
-      success: true
-    });
+    // SAVE PAYMENT ID
+    purchases[userId].payments.push(razorpay_payment_id);
+
+    // SAVE NOTE ACCESS (FOREVER ACCESS)
+    if (!purchases[userId].notes.includes(noteName)) {
+      purchases[userId].notes.push(noteName);
+    }
+
+    savePurchases();
+
+    return res.json({ success: true });
 
   } catch (err) {
     console.log("Verify error:", err);
@@ -158,23 +170,21 @@ app.post("/verify-payment", (req, res) => {
 // =========================
 
 app.get("/check-purchase", (req, res) => {
-  try {
-    const { userId, noteName } = req.query;
+  const { userId, noteName } = req.query;
 
-    if (!userId || !noteName) {
-      return res.json({ purchased: false });
-    }
-
-    const userNotes = purchases[userId] || [];
-
-    return res.json({
-      purchased: userNotes.includes(noteName)
-    });
-
-  } catch (err) {
-    console.log(err);
+  if (!userId || !noteName) {
     return res.json({ purchased: false });
   }
+
+  const user = purchases[userId];
+
+  if (!user) {
+    return res.json({ purchased: false });
+  }
+
+  return res.json({
+    purchased: user.notes?.includes(noteName) || false
+  });
 });
 
 // =========================
@@ -184,16 +194,15 @@ app.get("/check-purchase", (req, res) => {
 app.get("/notes", (req, res) => {
   try {
     const userId = req.query.userId;
-
     const noteName = decodeURIComponent(req.query.noteName || "");
 
     if (!userId || !noteName) {
       return res.status(400).send("Missing data");
     }
 
-    const userNotes = purchases[userId] || [];
+    const user = purchases[userId];
 
-    if (!userNotes.includes(noteName)) {
+    if (!user || !user.notes.includes(noteName)) {
       return res.status(403).send("❌ Access denied");
     }
 
@@ -237,7 +246,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// START
+// START SERVER
 // =========================
 
 const PORT = process.env.PORT || 3000;
