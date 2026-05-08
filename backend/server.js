@@ -1,3 +1,4 @@
+const admin = require("firebase-admin");
 require("dotenv").config();
 
 const express = require("express");
@@ -8,6 +9,16 @@ const path = require("path");
 const fs = require("fs");
 
 const app = express();
+const serviceAccount = require("./firebase-key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/
+:
+null"
+});
+
+const db = admin.database();
 
 // =========================
 // MIDDLEWARE
