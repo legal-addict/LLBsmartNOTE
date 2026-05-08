@@ -13,9 +13,7 @@ const serviceAccount = require("./firebase-key.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/
-:
-null"
+  databaseURL: "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/"
 });
 
 const db = admin.database();
