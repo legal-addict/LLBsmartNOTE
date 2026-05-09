@@ -9,7 +9,7 @@ const fs = require("fs");
 const admin = require("firebase-admin");
 
 // =========================
-// CRASH SAFETY
+// CRASH HANDLERS
 // =========================
 
 process.on("uncaughtException", err => {
@@ -32,15 +32,11 @@ const app = express();
 
 app.use(express.json());
 
-// ⚠️ Replace "*" in production with your frontend URL
-app.use(
-  cors({
-    origin: "*"
-  })
-);
+// ⚠️ Production: replace "*" with your frontend URL
+app.use(cors({ origin: "*" }));
 
 // =========================
-// ENV VALIDATION
+// ENV CHECK
 // =========================
 
 const {
@@ -79,12 +75,12 @@ admin.initializeApp({
 const db = admin.database();
 
 // =========================
-// FILE MAP (SECURITY WHITELIST)
+// FILE WHITELIST
 // =========================
 
 const fileMap = {
   "English I": "English_I.html",
-  Economics: "Economics.html",
+  "Economics": "Economics.html",
   "LOGIC - I": "LOGIC - I.html"
 };
 
@@ -108,7 +104,7 @@ function isValidString(v) {
 }
 
 // =========================
-// CREATE ORDER (FIXED AMOUNT → PAISE)
+// CREATE ORDER (FIXED: PAISE)
 // =========================
 
 app.post("/create-order", async (req, res) => {
@@ -133,6 +129,7 @@ app.post("/create-order", async (req, res) => {
       key: RAZORPAY_KEY_ID,
       order
     });
+
   } catch (err) {
     console.error("Create order error:", err);
     return res.status(500).json({
@@ -143,7 +140,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT
+// VERIFY PAYMENT (FIXED LOGIC)
 // =========================
 
 app.post("/verify-payment", async (req, res) => {
@@ -193,20 +190,21 @@ app.post("/verify-payment", async (req, res) => {
     }
 
     // =========================
-    // SAVE PURCHASE (SAFE UPDATE)
+    // SAVE TO FIREBASE (NO RACE CONDITION)
     // =========================
 
-    const ref = db.ref(`purchases/${userId}/${noteName}`);
-
-    await ref.update({
-      purchased: true,
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      noteName,
-      purchasedAt: Date.now()
-    });
+    await db
+      .ref(`purchases/${userId}/${noteName}`)
+      .update({
+        purchased: true,
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id,
+        noteName,
+        purchasedAt: Date.now()
+      });
 
     return res.json({ success: true });
+
   } catch (err) {
     console.error("Verify error:", err);
     return res.status(500).json({
@@ -232,9 +230,8 @@ app.get("/check-purchase", async (req, res) => {
       .ref(`purchases/${userId}/${noteName}`)
       .once("value");
 
-    return res.json({
-      purchased: snap.exists()
-    });
+    return res.json({ purchased: snap.exists() });
+
   } catch (err) {
     console.error(err);
     return res.json({ purchased: false });
@@ -242,7 +239,7 @@ app.get("/check-purchase", async (req, res) => {
 });
 
 // =========================
-// NOTES ACCESS (SECURE FILE SERVE)
+// NOTES ACCESS (SECURE FILE SERVER)
 // =========================
 
 app.get("/notes", async (req, res) => {
@@ -280,6 +277,7 @@ app.get("/notes", async (req, res) => {
     }
 
     return res.sendFile(filePath);
+
   } catch (err) {
     console.error("Notes error:", err);
     return res.status(500).send("Server error");
