@@ -1,4 +1,3 @@
-const admin = require("firebase-admin");
 require("dotenv").config();
 
 const express = require("express");
@@ -7,13 +6,20 @@ const crypto = require("crypto");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const admin = require("firebase-admin");
 
 const app = express();
+
+// =========================
+// FIREBASE
+// =========================
+
 const serviceAccount = require("./firebase-key.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/"
+  databaseURL:
+    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/"
 });
 
 const db = admin.database();
@@ -22,43 +28,27 @@ const db = admin.database();
 // MIDDLEWARE
 // =========================
 
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: "*"
+    // Replace * with your frontend domain later
+    // origin: ["https://yourdomain.com"]
+  })
+);
+
 app.use(express.json());
 
 // =========================
-// FILE STORAGE
+// VALID NOTES
 // =========================
 
-const filePath = path.join(__dirname, "purchases.json");
+const fileMap = {
+  "English I": "English_I.html",
+  "Economics": "Economics.html",
+  "LOGIC - I": "LOGIC - I.html"
+};
 
-let purchases = {};
-
-// =========================
-// LOAD DATA
-// =========================
-
-try {
-  if (fs.existsSync(filePath)) {
-    purchases = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } else {
-    fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
-  }
-} catch (err) {
-  console.log("Load error:", err);
-  purchases = {};
-}
-
-// =========================
-// SAVE DATA
-// =========================
-
-function savePurchases() {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(purchases, null, 2));
-  } catch (err) {
-    console.log("Save error:", err);
-  }
-}
+const validNotes = Object.keys(fileMap);
 
 // =========================
 // RAZORPAY
@@ -107,10 +97,10 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT (FIXED)
+// VERIFY PAYMENT
 // =========================
 
-app.post("/verify-payment", (req, res) => {
+app.post("/verify-payment", async (req, res) => {
   try {
     const {
       razorpay_order_id,
@@ -120,6 +110,10 @@ app.post("/verify-payment", (req, res) => {
       noteName
     } = req.body;
 
+    // =========================
+    // VALIDATION
+    // =========================
+
     if (
       !razorpay_order_id ||
       !razorpay_payment_id ||
@@ -127,34 +121,64 @@ app.post("/verify-payment", (req, res) => {
       !userId ||
       !noteName
     ) {
-      return res.json({ success: false });
+      return res.status(400).json({
+        success: false,
+        error: "Missing fields"
+      });
     }
 
+    if (!validNotes.includes(noteName)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid note"
+      });
+    }
+
+    // =========================
+    // VERIFY SIGNATURE
+    // =========================
+
     const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .createHmac(
+        "sha256",
+        process.env.RAZORPAY_KEY_SECRET
+      )
+      .update(
+        razorpay_order_id + "|" + razorpay_payment_id
+      )
       .digest("hex");
 
     if (generatedSignature !== razorpay_signature) {
-      return res.json({ success: false });
+      return res.status(400).json({
+        success: false,
+        error: "Invalid signature"
+      });
     }
 
-    // INIT USER
-    if (!purchases[userId]) {
-      purchases[userId] = [];
-    }
+    // =========================
+    // SAVE PURCHASE TO FIREBASE
+    // =========================
 
-    // PREVENT DUPLICATE
-    if (!purchases[userId].includes(noteName)) {
-      purchases[userId].push(noteName);
-      savePurchases();
-    }
+    await db
+      .ref(`purchases/${userId}/${noteName}`)
+      .set({
+        purchased: true,
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id,
+        purchasedAt: Date.now()
+      });
 
-    return res.json({ success: true });
+    return res.json({
+      success: true
+    });
 
   } catch (err) {
     console.log("Verify error:", err);
-    return res.json({ success: false });
+
+    return res.status(500).json({
+      success: false,
+      error: "Verification failed"
+    });
   }
 });
 
@@ -162,50 +186,80 @@ app.post("/verify-payment", (req, res) => {
 // CHECK PURCHASE
 // =========================
 
-app.get("/check-purchase", (req, res) => {
-  const { userId, noteName } = req.query;
+app.get("/check-purchase", async (req, res) => {
+  try {
+    const { userId, noteName } = req.query;
 
-  if (!userId || !noteName) {
-    return res.json({ purchased: false });
+    if (!userId || !noteName) {
+      return res.json({
+        purchased: false
+      });
+    }
+
+    const snapshot = await db
+      .ref(`purchases/${userId}/${noteName}`)
+      .once("value");
+
+    return res.json({
+      purchased: snapshot.exists()
+    });
+
+  } catch (err) {
+    console.log("Check purchase error:", err);
+
+    return res.json({
+      purchased: false
+    });
   }
-
-  const userNotes = purchases[userId] || [];
-
-  return res.json({
-    purchased: userNotes.includes(noteName)
-  });
 });
 
 // =========================
 // NOTES ACCESS
 // =========================
 
-app.get("/notes", (req, res) => {
+app.get("/notes", async (req, res) => {
   try {
     const userId = req.query.userId;
-    const noteName = decodeURIComponent(req.query.noteName || "");
+
+    const noteName = decodeURIComponent(
+      req.query.noteName || ""
+    );
+
+    // =========================
+    // VALIDATION
+    // =========================
 
     if (!userId || !noteName) {
-      return res.status(400).send("Missing data");
+      return res
+        .status(400)
+        .send("Missing data");
     }
 
-    const userNotes = purchases[userId] || [];
-
-    if (!userNotes.includes(noteName)) {
-      return res.status(403).send("❌ Access denied");
+    if (!validNotes.includes(noteName)) {
+      return res
+        .status(404)
+        .send("Invalid note");
     }
 
-    const fileMap = {
-      "English I": "English_I.html",
-      "Economics": "Economics.html",
-      "LOGIC - I": "LOGIC - I.html"
-    };
+    // =========================
+    // CHECK PURCHASE
+    // =========================
+
+    const snapshot = await db
+      .ref(`purchases/${userId}/${noteName}`)
+      .once("value");
+
+    if (!snapshot.exists()) {
+      return res
+        .status(403)
+        .send("❌ Access denied");
+    }
+
+    // =========================
+    // FILE PATH
+    // =========================
 
     const fileName = fileMap[noteName];
-
-    if (!fileName) {
-      return res.status(404).send("Invalid note");
-    }
 
     const fullPath = path.join(
       __dirname,
@@ -214,15 +268,28 @@ app.get("/notes", (req, res) => {
       fileName
     );
 
+    // =========================
+    // FILE EXISTS?
+    // =========================
+
     if (!fs.existsSync(fullPath)) {
-      return res.status(404).send("File missing");
+      return res
+        .status(404)
+        .send("File missing");
     }
+
+    // =========================
+    // SEND FILE
+    // =========================
 
     return res.sendFile(fullPath);
 
   } catch (err) {
     console.log("Notes error:", err);
-    return res.status(500).send("Server error");
+
+    return res
+      .status(500)
+      .send("Server error");
   }
 });
 
@@ -241,5 +308,7 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log(
+    `Server running on port ${PORT}`
+  );
 });
