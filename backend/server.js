@@ -8,10 +8,6 @@ const path = require("path");
 const fs = require("fs");
 const admin = require("firebase-admin");
 
-// =========================
-// CRASH HANDLERS
-// =========================
-
 process.on("uncaughtException", err => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
@@ -22,31 +18,53 @@ process.on("unhandledRejection", err => {
 
 const app = express();
 
-// =========================
-// FIREBASE INIT
-// =========================
-
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n")
-  }),
-  databaseURL:
-    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
-});
-
-const db = admin.database();
-
-// =========================
-// MIDDLEWARE
-// =========================
-
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// VALID NOTES
+// ENV CHECK (IMPORTANT FIX)
+// =========================
+
+if (
+  !process.env.RAZORPAY_KEY_ID ||
+  !process.env.RAZORPAY_KEY_SECRET
+) {
+  console.error("❌ Missing Razorpay env variables");
+  process.exit(1);
+}
+
+if (
+  !process.env.FIREBASE_PROJECT_ID ||
+  !process.env.FIREBASE_CLIENT_EMAIL ||
+  !process.env.FIREBASE_PRIVATE_KEY
+) {
+  console.error("❌ Missing Firebase env variables");
+  process.exit(1);
+}
+
+// =========================
+// FIREBASE INIT (FIXED)
+// =========================
+
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+    }),
+    databaseURL:
+      "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
+  });
+} catch (err) {
+  console.error("❌ Firebase init failed:", err);
+  process.exit(1);
+}
+
+const db = admin.database();
+
+// =========================
+// FILE MAP
 // =========================
 
 const fileMap = {
@@ -58,13 +76,20 @@ const fileMap = {
 const validNotes = Object.keys(fileMap);
 
 // =========================
-// RAZORPAY
+// RAZORPAY INIT (SAFE)
 // =========================
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay;
+
+try {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+} catch (err) {
+  console.error("❌ Razorpay init failed:", err);
+  process.exit(1);
+}
 
 // =========================
 // HELPERS
@@ -80,8 +105,7 @@ function isValidString(v) {
 
 app.post("/create-order", async (req, res) => {
   try {
-    let amount = Number(req.body.amount);
-    amount = Math.floor(amount);
+    const amount = Number(req.body.amount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
@@ -91,12 +115,12 @@ app.post("/create-order", async (req, res) => {
     }
 
     const order = await razorpay.orders.create({
-      amount,
+      amount: Math.round(amount),
       currency: "INR",
       receipt: "receipt_" + Date.now()
     });
 
-    return res.json({
+    res.json({
       success: true,
       key: process.env.RAZORPAY_KEY_ID,
       order
@@ -104,8 +128,7 @@ app.post("/create-order", async (req, res) => {
 
   } catch (err) {
     console.error("Create order error:", err);
-
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: "Order creation failed"
     });
@@ -146,47 +169,36 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    // =========================
-    // SECURE SIGNATURE CHECK
-    // =========================
-
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    const isValidSignature = crypto.timingSafeEqual(
-      Buffer.from(generatedSignature),
-      Buffer.from(razorpay_signature)
-    );
-
-    if (!isValidSignature) {
+    if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({
         success: false,
         error: "Invalid signature"
       });
     }
 
-    // =========================
-    // SAVE TO FIREBASE
-    // =========================
+    const ref = db.ref(`purchases/${userId}/${noteName}`);
 
-    await db
-      .ref(`purchases/${userId}/${noteName}`)
-      .set({
+    const snap = await ref.once("value");
+
+    if (!snap.exists()) {
+      await ref.set({
         purchased: true,
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
-        noteName,
         purchasedAt: Date.now()
       });
+    }
 
-    return res.json({ success: true });
+    res.json({ success: true });
 
   } catch (err) {
-    console.error("Verify payment error:", err);
-
-    return res.status(500).json({
+    console.error("Verify error:", err);
+    res.status(500).json({
       success: false,
       error: "Verification failed"
     });
@@ -205,17 +217,15 @@ app.get("/check-purchase", async (req, res) => {
       return res.json({ purchased: false });
     }
 
-    const snapshot = await db
+    const snap = await db
       .ref(`purchases/${userId}/${noteName}`)
       .once("value");
 
-    return res.json({
-      purchased: snapshot.exists()
-    });
+    res.json({ purchased: snap.exists() });
 
   } catch (err) {
     console.error(err);
-    return res.json({ purchased: false });
+    res.json({ purchased: false });
   }
 });
 
@@ -236,32 +246,30 @@ app.get("/notes", async (req, res) => {
       return res.status(404).send("Invalid note");
     }
 
-    const snapshot = await db
+    const snap = await db
       .ref(`purchases/${userId}/${noteName}`)
       .once("value");
 
-    if (!snapshot.exists()) {
+    if (!snap.exists()) {
       return res.status(403).send("❌ Access denied");
     }
 
-    const fileName = fileMap[noteName];
-
-    const fullPath = path.join(
+    const filePath = path.join(
       __dirname,
       "..",
       "FIRST_Y_SEM_1",
-      fileName
+      fileMap[noteName]
     );
 
-    if (!fs.existsSync(fullPath)) {
+    if (!fs.existsSync(filePath)) {
       return res.status(404).send("File missing");
     }
 
-    return res.sendFile(fullPath);
+    res.sendFile(filePath);
 
   } catch (err) {
     console.error("Notes error:", err);
-    return res.status(500).send("Server error");
+    res.status(500).send("Server error");
   }
 });
 
@@ -274,18 +282,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// 404
-// =========================
-
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Route not found"
-  });
-});
-
-// =========================
-// START SERVER
+// START SERVER (CRITICAL FIX)
 // =========================
 
 const PORT = process.env.PORT || 3000;
