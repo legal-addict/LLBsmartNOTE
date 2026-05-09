@@ -19,7 +19,7 @@ const serviceAccount = require("./firebase-key.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL:
-    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
 const db = admin.database();
@@ -31,8 +31,6 @@ const db = admin.database();
 app.use(
   cors({
     origin: "*"
-    // Replace * with your frontend domain later
-    // origin: ["https://yourdomain.com"]
   })
 );
 
@@ -60,24 +58,48 @@ const razorpay = new Razorpay({
 });
 
 // =========================
+// HELPERS
+// =========================
+
+function isValidString(value) {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0
+  );
+}
+
+// =========================
 // CREATE ORDER
 // =========================
 
 app.post("/create-order", async (req, res) => {
   try {
+
     const amount = Number(req.body.amount);
 
-    if (!amount || amount <= 0) {
+    // =========================
+    // VALIDATION
+    // =========================
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
       return res.status(400).json({
         success: false,
         error: "Invalid amount"
       });
     }
 
+    // =========================
+    // CREATE ORDER
+    // =========================
+
     const order = await razorpay.orders.create({
-      amount,
+      amount: Math.round(amount),
       currency: "INR",
-      receipt: "receipt_" + Date.now()
+      receipt:
+        "receipt_" + Date.now()
     });
 
     return res.json({
@@ -87,7 +109,11 @@ app.post("/create-order", async (req, res) => {
     });
 
   } catch (err) {
-    console.log("Create order error:", err);
+
+    console.log(
+      "Create order error:",
+      err
+    );
 
     return res.status(500).json({
       success: false,
@@ -101,7 +127,9 @@ app.post("/create-order", async (req, res) => {
 // =========================
 
 app.post("/verify-payment", async (req, res) => {
+
   try {
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -115,11 +143,11 @@ app.post("/verify-payment", async (req, res) => {
     // =========================
 
     if (
-      !razorpay_order_id ||
-      !razorpay_payment_id ||
-      !razorpay_signature ||
-      !userId ||
-      !noteName
+      !isValidString(razorpay_order_id) ||
+      !isValidString(razorpay_payment_id) ||
+      !isValidString(razorpay_signature) ||
+      !isValidString(userId) ||
+      !isValidString(noteName)
     ) {
       return res.status(400).json({
         success: false,
@@ -127,7 +155,9 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    if (!validNotes.includes(noteName)) {
+    if (
+      !validNotes.includes(noteName)
+    ) {
       return res.status(400).json({
         success: false,
         error: "Invalid note"
@@ -144,11 +174,14 @@ app.post("/verify-payment", async (req, res) => {
         process.env.RAZORPAY_KEY_SECRET
       )
       .update(
-        razorpay_order_id + "|" + razorpay_payment_id
+        `${razorpay_order_id}|${razorpay_payment_id}`
       )
       .digest("hex");
 
-    if (generatedSignature !== razorpay_signature) {
+    if (
+      generatedSignature !==
+      razorpay_signature
+    ) {
       return res.status(400).json({
         success: false,
         error: "Invalid signature"
@@ -156,24 +189,40 @@ app.post("/verify-payment", async (req, res) => {
     }
 
     // =========================
-    // SAVE PURCHASE TO FIREBASE
+    // PREVENT DUPLICATE ENTRY
     // =========================
 
-    await db
-      .ref(`purchases/${userId}/${noteName}`)
-      .set({
+    const purchaseRef = db.ref(
+      `purchases/${userId}/${noteName}`
+    );
+
+    const snapshot =
+      await purchaseRef.once("value");
+
+    if (!snapshot.exists()) {
+
+      await purchaseRef.set({
         purchased: true,
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        purchasedAt: Date.now()
+        paymentId:
+          razorpay_payment_id,
+        orderId:
+          razorpay_order_id,
+        noteName,
+        purchasedAt:
+          admin.database.ServerValue.TIMESTAMP
       });
+    }
 
     return res.json({
       success: true
     });
 
   } catch (err) {
-    console.log("Verify error:", err);
+
+    console.log(
+      "Verify payment error:",
+      err
+    );
 
     return res.status(500).json({
       success: false,
@@ -186,56 +235,88 @@ app.post("/verify-payment", async (req, res) => {
 // CHECK PURCHASE
 // =========================
 
-app.get("/check-purchase", async (req, res) => {
-  try {
-    const { userId, noteName } = req.query;
+app.get(
+  "/check-purchase",
+  async (req, res) => {
 
-    if (!userId || !noteName) {
+    try {
+
+      const { userId, noteName } =
+        req.query;
+
+      // =========================
+      // VALIDATION
+      // =========================
+
+      if (
+        !isValidString(userId) ||
+        !isValidString(noteName)
+      ) {
+        return res.json({
+          purchased: false
+        });
+      }
+
+      // =========================
+      // CHECK DATABASE
+      // =========================
+
+      const snapshot = await db
+        .ref(
+          `purchases/${userId}/${noteName}`
+        )
+        .once("value");
+
       return res.json({
+        purchased: snapshot.exists()
+      });
+
+    } catch (err) {
+
+      console.log(
+        "Check purchase error:",
+        err
+      );
+
+      return res.status(500).json({
         purchased: false
       });
     }
-
-    const snapshot = await db
-      .ref(`purchases/${userId}/${noteName}`)
-      .once("value");
-
-    return res.json({
-      purchased: snapshot.exists()
-    });
-
-  } catch (err) {
-    console.log("Check purchase error:", err);
-
-    return res.json({
-      purchased: false
-    });
   }
-});
+);
 
 // =========================
 // NOTES ACCESS
 // =========================
 
 app.get("/notes", async (req, res) => {
-  try {
-    const userId = req.query.userId;
 
-    const noteName = decodeURIComponent(
-      req.query.noteName || ""
-    );
+  try {
+
+    const userId =
+      req.query.userId;
+
+    const noteName =
+      decodeURIComponent(
+        req.query.noteName || ""
+      );
 
     // =========================
     // VALIDATION
     // =========================
 
-    if (!userId || !noteName) {
+    if (
+      !isValidString(userId) ||
+      !isValidString(noteName)
+    ) {
       return res
         .status(400)
         .send("Missing data");
     }
 
-    if (!validNotes.includes(noteName)) {
+    if (
+      !validNotes.includes(noteName)
+    ) {
       return res
         .status(404)
         .send("Invalid note");
@@ -246,7 +327,9 @@ app.get("/notes", async (req, res) => {
     // =========================
 
     const snapshot = await db
-      .ref(`purchases/${userId}/${noteName}`)
+      .ref(
+        `purchases/${userId}/${noteName}`
+      )
       .once("value");
 
     if (!snapshot.exists()) {
@@ -259,7 +342,8 @@ app.get("/notes", async (req, res) => {
     // FILE PATH
     // =========================
 
-    const fileName = fileMap[noteName];
+    const fileName =
+      fileMap[noteName];
 
     const fullPath = path.join(
       __dirname,
@@ -272,7 +356,9 @@ app.get("/notes", async (req, res) => {
     // FILE EXISTS?
     // =========================
 
-    if (!fs.existsSync(fullPath)) {
+    if (
+      !fs.existsSync(fullPath)
+    ) {
       return res
         .status(404)
         .send("File missing");
@@ -285,7 +371,11 @@ app.get("/notes", async (req, res) => {
     return res.sendFile(fullPath);
 
   } catch (err) {
-    console.log("Notes error:", err);
+
+    console.log(
+      "Notes access error:",
+      err
+    );
 
     return res
       .status(500)
@@ -302,12 +392,25 @@ app.get("/", (req, res) => {
 });
 
 // =========================
+// 404
+// =========================
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: "Route not found"
+  });
+});
+
+// =========================
 // START SERVER
 // =========================
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+  process.env.PORT || 3000;
 
 app.listen(PORT, () => {
+
   console.log(
     `Server running on port ${PORT}`
   );
