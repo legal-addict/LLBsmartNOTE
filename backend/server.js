@@ -9,7 +9,7 @@ const fs = require("fs");
 const admin = require("firebase-admin");
 
 // =========================
-// CRASH HANDLERS
+// CRASH SAFETY
 // =========================
 
 process.on("uncaughtException", err => {
@@ -26,39 +26,45 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// ENV VALIDATION
+// ENV CHECK
 // =========================
 
-if (
-  !process.env.RAZORPAY_KEY_ID ||
-  !process.env.RAZORPAY_KEY_SECRET
-) {
+const {
+  RAZORPAY_KEY_ID,
+  RAZORPAY_KEY_SECRET,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_CLIENT_EMAIL,
+  FIREBASE_PRIVATE_KEY
+} = process.env;
+
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
   console.error("❌ Missing Razorpay env variables");
   process.exit(1);
 }
 
-if (
-  !process.env.FIREBASE_PROJECT_ID ||
-  !process.env.FIREBASE_CLIENT_EMAIL ||
-  !process.env.FIREBASE_PRIVATE_KEY
-) {
+if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
   console.error("❌ Missing Firebase env variables");
   process.exit(1);
 }
 
 // =========================
-// FIREBASE INIT
+// FIREBASE INIT (SAFE)
 // =========================
 
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
-  }),
-  databaseURL:
-    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
-});
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: FIREBASE_PROJECT_ID,
+      clientEmail: FIREBASE_CLIENT_EMAIL,
+      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+    }),
+    databaseURL:
+      "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
+  });
+} catch (err) {
+  console.error("❌ Firebase init failed:", err);
+  process.exit(1);
+}
 
 const db = admin.database();
 
@@ -78,10 +84,17 @@ const validNotes = Object.keys(fileMap);
 // RAZORPAY INIT
 // =========================
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay;
+
+try {
+  razorpay = new Razorpay({
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET
+  });
+} catch (err) {
+  console.error("❌ Razorpay init failed:", err);
+  process.exit(1);
+}
 
 // =========================
 // HELPERS
@@ -92,32 +105,29 @@ function isValidString(v) {
 }
 
 // =========================
-// CREATE ORDER (FIXED)
+// CREATE ORDER
 // =========================
 
 app.post("/create-order", async (req, res) => {
   try {
-    const price = Number(req.body.amount);
+    const amount = Number(req.body.amount);
 
-    if (!Number.isFinite(price) || price <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
         success: false,
         error: "Invalid amount"
       });
     }
 
-    // 🔥 FIX: convert rupees → paise
-    const amount = Math.round(price * 100);
-
     const order = await razorpay.orders.create({
-      amount,
+      amount: Math.round(amount),
       currency: "INR",
       receipt: "receipt_" + Date.now()
     });
 
     res.json({
       success: true,
-      key: process.env.RAZORPAY_KEY_ID,
+      key: RAZORPAY_KEY_ID,
       order
     });
 
@@ -131,7 +141,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT (FIXED)
+// VERIFY PAYMENT
 // =========================
 
 app.post("/verify-payment", async (req, res) => {
@@ -157,9 +167,7 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    const cleanNote = noteName.trim();
-
-    if (!validNotes.includes(cleanNote)) {
+    if (!validNotes.includes(noteName)) {
       return res.status(400).json({
         success: false,
         error: "Invalid note"
@@ -167,7 +175,7 @@ app.post("/verify-payment", async (req, res) => {
     }
 
     const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .createHmac("sha256", RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
@@ -178,13 +186,17 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    // 🔥 FIX: atomic write (no race condition)
-    await db.ref(`purchases/${userId}/${cleanNote}`).set({
-      purchased: true,
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      purchasedAt: Date.now()
-    });
+    const ref = db.ref(`purchases/${userId}/${noteName}`);
+    const snap = await ref.once("value");
+
+    if (!snap.exists()) {
+      await ref.set({
+        purchased: true,
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id,
+        purchasedAt: Date.now()
+      });
+    }
 
     res.json({ success: true });
 
@@ -210,13 +222,13 @@ app.get("/check-purchase", async (req, res) => {
     }
 
     const snap = await db
-      .ref(`purchases/${userId}/${noteName.trim()}`)
+      .ref(`purchases/${userId}/${noteName}`)
       .once("value");
 
     res.json({ purchased: snap.exists() });
 
   } catch (err) {
-    console.error(err);
+    console.error("Check purchase error:", err);
     res.json({ purchased: false });
   }
 });
@@ -228,7 +240,7 @@ app.get("/check-purchase", async (req, res) => {
 app.get("/notes", async (req, res) => {
   try {
     const userId = req.query.userId;
-    const noteName = decodeURIComponent(String(req.query.noteName || "").trim());
+    const noteName = req.query.noteName;
 
     if (!isValidString(userId) || !isValidString(noteName)) {
       return res.status(400).send("Missing data");
@@ -246,11 +258,17 @@ app.get("/notes", async (req, res) => {
       return res.status(403).send("❌ Access denied");
     }
 
+    const fileName = fileMap[noteName];
+
+    if (!fileName) {
+      return res.status(404).send("File mapping missing");
+    }
+
     const filePath = path.join(
       __dirname,
       "..",
       "FIRST_Y_SEM_1",
-      fileMap[noteName]
+      fileName
     );
 
     if (!fs.existsSync(filePath)) {
