@@ -8,6 +8,10 @@ const path = require("path");
 const fs = require("fs");
 const admin = require("firebase-admin");
 
+// =========================
+// CRASH HANDLERS
+// =========================
+
 process.on("uncaughtException", err => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
@@ -22,7 +26,7 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // =========================
-// ENV CHECK (IMPORTANT FIX)
+// ENV VALIDATION
 // =========================
 
 if (
@@ -43,23 +47,18 @@ if (
 }
 
 // =========================
-// FIREBASE INIT (FIXED)
+// FIREBASE INIT
 // =========================
 
-try {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
-    }),
-    databaseURL:
-      "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
-  });
-} catch (err) {
-  console.error("❌ Firebase init failed:", err);
-  process.exit(1);
-}
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+  }),
+  databaseURL:
+    "https://legal-addict-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
 
 const db = admin.database();
 
@@ -76,20 +75,13 @@ const fileMap = {
 const validNotes = Object.keys(fileMap);
 
 // =========================
-// RAZORPAY INIT (SAFE)
+// RAZORPAY INIT
 // =========================
 
-let razorpay;
-
-try {
-  razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
-  });
-} catch (err) {
-  console.error("❌ Razorpay init failed:", err);
-  process.exit(1);
-}
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 // =========================
 // HELPERS
@@ -100,22 +92,25 @@ function isValidString(v) {
 }
 
 // =========================
-// CREATE ORDER
+// CREATE ORDER (FIXED)
 // =========================
 
 app.post("/create-order", async (req, res) => {
   try {
-    const amount = Number(req.body.amount);
+    const price = Number(req.body.amount);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       return res.status(400).json({
         success: false,
         error: "Invalid amount"
       });
     }
 
+    // 🔥 FIX: convert rupees → paise
+    const amount = Math.round(price * 100);
+
     const order = await razorpay.orders.create({
-      amount: Math.round(amount),
+      amount,
       currency: "INR",
       receipt: "receipt_" + Date.now()
     });
@@ -136,7 +131,7 @@ app.post("/create-order", async (req, res) => {
 });
 
 // =========================
-// VERIFY PAYMENT
+// VERIFY PAYMENT (FIXED)
 // =========================
 
 app.post("/verify-payment", async (req, res) => {
@@ -162,7 +157,9 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    if (!validNotes.includes(noteName)) {
+    const cleanNote = noteName.trim();
+
+    if (!validNotes.includes(cleanNote)) {
       return res.status(400).json({
         success: false,
         error: "Invalid note"
@@ -181,18 +178,13 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    const ref = db.ref(`purchases/${userId}/${noteName}`);
-
-    const snap = await ref.once("value");
-
-    if (!snap.exists()) {
-      await ref.set({
-        purchased: true,
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        purchasedAt: Date.now()
-      });
-    }
+    // 🔥 FIX: atomic write (no race condition)
+    await db.ref(`purchases/${userId}/${cleanNote}`).set({
+      purchased: true,
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+      purchasedAt: Date.now()
+    });
 
     res.json({ success: true });
 
@@ -218,7 +210,7 @@ app.get("/check-purchase", async (req, res) => {
     }
 
     const snap = await db
-      .ref(`purchases/${userId}/${noteName}`)
+      .ref(`purchases/${userId}/${noteName.trim()}`)
       .once("value");
 
     res.json({ purchased: snap.exists() });
@@ -236,7 +228,7 @@ app.get("/check-purchase", async (req, res) => {
 app.get("/notes", async (req, res) => {
   try {
     const userId = req.query.userId;
-    const noteName = decodeURIComponent(req.query.noteName || "");
+    const noteName = decodeURIComponent(String(req.query.noteName || "").trim());
 
     if (!isValidString(userId) || !isValidString(noteName)) {
       return res.status(400).send("Missing data");
@@ -282,7 +274,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// START SERVER (CRITICAL FIX)
+// START SERVER
 // =========================
 
 const PORT = process.env.PORT || 3000;
