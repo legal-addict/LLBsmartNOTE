@@ -190,37 +190,49 @@ app.post("/verify-payment", async (req, res) => {
     }
 
     // =========================
-    // SAVE TO FIREBASE (NO RACE CONDITION)
-    // =========================
-
-    // =========================
+ // =========================
 // PREVENT DUPLICATE PAYMENT
 // =========================
 
 const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
 
-const existing = await paymentRef.once("value");
+const result = await paymentRef.transaction(current => {
+  if (current === null) {
+    return {
+      userId,
+      noteName,
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id,
+      createdAt: Date.now()
+    };
+  }
 
-if (existing.exists()) {
+  return; // already processed
+});
+
+if (!result.committed) {
   return res.status(400).json({
     success: false,
     error: "Payment already processed"
   });
 }
 
-// Save payment globally
-await paymentRef.set({
-  userId,
-  noteName,
-  orderId: razorpay_order_id,
-  paymentId: razorpay_payment_id,
-  createdAt: Date.now()
-});
+// =========================
+// SAVE PURCHASE
+// =========================
 
+await db
+  .ref(`purchases/${userId}/${noteName}`)
+  .set({
+    purchased: true,
+    paymentId: razorpay_payment_id,
+    orderId: razorpay_order_id,
+    noteName,
+    purchasedAt: Date.now()
+  });
+    
 // Save purchase
     const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
-
-const existing = await paymentRef.once("value");
 
 if (existing.exists()) {
   return res.status(400).json({
