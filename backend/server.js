@@ -218,15 +218,16 @@ await paymentRef.set({
 });
 
 // Save purchase
-await db
-  .ref(`purchases/${userId}/${noteName}`)
-  .set({
-    purchased: true,
-    paymentId: razorpay_payment_id,
-    orderId: razorpay_order_id,
-    noteName,
-    purchasedAt: Date.now()
+    const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
+
+const existing = await paymentRef.once("value");
+
+if (existing.exists()) {
+  return res.status(400).json({
+    success: false,
+    error: "Payment already processed"
   });
+}
     const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
 
 const result = await paymentRef.transaction(current => {
