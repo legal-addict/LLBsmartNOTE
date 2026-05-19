@@ -193,9 +193,6 @@ app.post("/verify-payment", async (req, res) => {
  // =========================
 // PREVENT DUPLICATE PAYMENT
 // =========================
-
-const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
-
 const result = await paymentRef.transaction(current => {
   if (current === null) {
     return {
