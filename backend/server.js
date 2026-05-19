@@ -231,27 +231,6 @@ await db
 // Save purchase
     const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
 
-if (existing.exists()) {
-  return res.status(400).json({
-    success: false,
-    error: "Payment already processed"
-  });
-}
-    const paymentRef = db.ref(`payments/${razorpay_payment_id}`);
-
-const result = await paymentRef.transaction(current => {
-  if (current === null) {
-    return {
-      userId,
-      noteName,
-      orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
-      createdAt: Date.now()
-    };
-  }
-
-  return; // abort
-});
 
 if (!result.committed) {
   return res.status(400).json({
