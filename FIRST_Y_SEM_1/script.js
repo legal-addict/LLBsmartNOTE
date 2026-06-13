@@ -24,20 +24,6 @@ window.buyNote = async function(noteName, price) {
     // =========================
     // STABLE USER ID
     // =========================
-const email =
-document.getElementById("email").value;
-
-body: JSON.stringify({
-    amount: Math.round(Number(price) * 100),
-    email,
-    noteName
-})CREATE TABLE purchases (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
-    note_name VARCHAR(255) NOT NULL,
-    payment_id VARCHAR(255),
-    purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
     let userId =
       localStorage.getItem("legal_addict_user");
 
