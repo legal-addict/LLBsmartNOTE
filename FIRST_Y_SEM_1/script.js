@@ -28,9 +28,8 @@ window.paymentProcessing = true;
 // CHECK PURCHASE
 
 const checkRes = await fetch(
-  `https://backend-kxr2.onrender.com/check-purchase?email=${encodeURIComponent(email)}&noteName=${encodeURIComponent(noteName)}`
+`https://backend-kxr2.onrender.com/check-purchase?email=${encodeURIComponent(email)}&noteName=${encodeURIComponent(noteName)}`
 );
-
 if (!checkRes.ok) {
   throw new Error("Purchase check failed");
 }
