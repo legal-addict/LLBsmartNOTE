@@ -32,7 +32,7 @@ if (!validNotes.includes(noteName)) {
   });
 }
 
-// VERIFY SIGNATURE
+// VERIFY RAZORPAY SIGNATURE
 
 const generatedSignature = crypto
   .createHmac(
@@ -102,11 +102,11 @@ await db
   .set({
     purchased: true,
     email,
+    noteName,
     paymentId:
       razorpay_payment_id,
     orderId:
       razorpay_order_id,
-    noteName,
     purchasedAt:
       Date.now()
   });
