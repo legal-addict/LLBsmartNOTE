@@ -10,7 +10,7 @@ window.buyNote = async function(noteName, price) {
     // ASK GMAIL IN POPUP
 
     const email = prompt(
-      "Enter your Gmail for lifetime access:"
+      "Enter your Gmail for access:"
     );
 
     if (!email) {
