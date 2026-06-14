@@ -1,3 +1,12 @@
+console.log("SERVER STARTED");
+console.log("REACHED APP LISTEN");
+process.on("uncaughtException", err => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", err => {
+  console.error("UNHANDLED REJECTION:", err);
+});
 // imports
 
 const express = require("express");
