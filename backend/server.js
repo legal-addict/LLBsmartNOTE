@@ -1,4 +1,16 @@
-// =====================================
+const express = require("express");
+const cors = require("cors");
+const crypto = require("crypto");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log(req.method, req.url);
+  next();
+});// =====================================
 // CHECK PURCHASE
 // =====================================
 
