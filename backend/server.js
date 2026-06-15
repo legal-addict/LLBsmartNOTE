@@ -1,10 +1,3 @@
-app.use((req, res, next) => {
-  console.log(req.method, req.url);
-  next();
-});// =======================
-// IMPORTS
-// =======================
-
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
@@ -14,9 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// =======================
-// ERROR LOGGING
-// =======================
+app.use((req, res, next) => {
+  console.log(req.method, req.url);
+  next();
+});
 
 process.on("uncaughtException", err => {
   console.error("UNCAUGHT EXCEPTION:", err);
@@ -25,9 +19,13 @@ process.on("uncaughtException", err => {
 process.on("unhandledRejection", err => {
   console.error("UNHANDLED REJECTION:", err);
 });
+
+// =====================================
+// CHECK PURCHASE
+// =====================================
+
 app.get("/check-purchase", async (req, res) => {
   try {
-
     const { email, noteName } = req.query;
 
     if (!email || !noteName) {
@@ -61,9 +59,10 @@ app.get("/check-purchase", async (req, res) => {
     });
   }
 });
-// =======================
+
+// =====================================
 // VERIFY PAYMENT
-// =======================
+// =====================================
 
 app.post("/verify-payment", async (req, res) => {
   try {
@@ -99,8 +98,6 @@ app.post("/verify-payment", async (req, res) => {
       });
     }
 
-    console.log("SECRET EXISTS:", !!RAZORPAY_KEY_SECRET);
-
     const generatedSignature = crypto
       .createHmac(
         "sha256",
@@ -111,17 +108,10 @@ app.post("/verify-payment", async (req, res) => {
       )
       .digest("hex");
 
-    console.log(
-      "Generated:",
-      generatedSignature
-    );
-
-    console.log(
-      "Received:",
+    if (
+      generatedSignature !==
       razorpay_signature
-    );
-
-    if (generatedSignature !== razorpay_signature) {
+    ) {
       return res.status(400).json({
         success: false,
         error: "Invalid signature"
@@ -132,25 +122,29 @@ app.post("/verify-payment", async (req, res) => {
       `payments/${razorpay_payment_id}`
     );
 
-    const result = await paymentRef.transaction(
-      current => {
-        if (current === null) {
-          return {
-            email,
-            noteName,
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
-            createdAt: Date.now()
-          };
+    const result =
+      await paymentRef.transaction(
+        current => {
+          if (current === null) {
+            return {
+              email,
+              noteName,
+              orderId: razorpay_order_id,
+              paymentId:
+                razorpay_payment_id,
+              createdAt: Date.now()
+            };
+          }
+
+          return;
         }
-        return;
-      }
-    );
+      );
 
     if (!result.committed) {
       return res.status(400).json({
         success: false,
-        error: "Payment already processed"
+        error:
+          "Payment already processed"
       });
     }
 
@@ -160,13 +154,17 @@ app.post("/verify-payment", async (req, res) => {
       .replace(/\./g, "_");
 
     await db
-      .ref(`purchases/${emailKey}/${noteName}`)
+      .ref(
+        `purchases/${emailKey}/${noteName}`
+      )
       .set({
         purchased: true,
         email: email.toLowerCase(),
         noteName,
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
+        paymentId:
+          razorpay_payment_id,
+        orderId:
+          razorpay_order_id,
         purchasedAt: Date.now()
       });
 
@@ -188,11 +186,12 @@ app.post("/verify-payment", async (req, res) => {
   }
 });
 
-// =======================
+// =====================================
 // START SERVER
-// =======================
+// =====================================
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+  process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("SERVER STARTED");
