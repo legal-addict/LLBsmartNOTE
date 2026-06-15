@@ -22,7 +22,42 @@ process.on("uncaughtException", err => {
 process.on("unhandledRejection", err => {
   console.error("UNHANDLED REJECTION:", err);
 });
+app.get("/check-purchase", async (req, res) => {
+  try {
 
+    const { email, noteName } = req.query;
+
+    if (!email || !noteName) {
+      return res.status(400).json({
+        purchased: false
+      });
+    }
+
+    const emailKey = email
+      .trim()
+      .toLowerCase()
+      .replace(/\./g, "_");
+
+    const snap = await db
+      .ref(`purchases/${emailKey}/${noteName}`)
+      .once("value");
+
+    return res.json({
+      purchased: snap.exists()
+    });
+
+  } catch (err) {
+
+    console.error(
+      "CHECK PURCHASE ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      purchased: false
+    });
+  }
+});
 // =======================
 // VERIFY PAYMENT
 // =======================
