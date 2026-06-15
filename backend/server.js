@@ -1,4 +1,26 @@
-console.log("SERVER STARTED");
+app.post("/verify-payment", async (req, res) => {
+  try {
+
+    console.log("VERIFY REQUEST:");
+    console.log(JSON.stringify(req.body, null, 2));
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      email,
+      noteName
+    } = req.body;
+
+    console.log({
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      email,
+      noteName
+    });
+    
+    console.log("SERVER STARTED");
 console.log("REACHED APP LISTEN");
 process.on("uncaughtException", err => {
   console.error("UNCAUGHT EXCEPTION:", err);
@@ -13,21 +35,11 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
-
+const crypto = require("crypto");
 app.use(cors());
 app.use(express.json());
 
-// route
-app.post("/verify-payment", async (req, res) => {
-  try {
 
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      email,
-      noteName
-    } = req.body;
 
     // VALIDATION
 
