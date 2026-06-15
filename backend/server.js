@@ -1,8 +1,37 @@
+// =======================
+// IMPORTS
+// =======================
+
+const express = require("express");
+const cors = require("cors");
+const crypto = require("crypto");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// =======================
+// ERROR LOGGING
+// =======================
+
+process.on("uncaughtException", err => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", err => {
+  console.error("UNHANDLED REJECTION:", err);
+});
+
+// =======================
+// VERIFY PAYMENT
+// =======================
+
 app.post("/verify-payment", async (req, res) => {
   try {
 
-    console.log("VERIFY REQUEST:");
-    console.log(JSON.stringify(req.body, null, 2));
+    console.log("VERIFY REQUEST");
+    console.log(req.body);
 
     const {
       razorpay_order_id,
@@ -11,37 +40,6 @@ app.post("/verify-payment", async (req, res) => {
       email,
       noteName
     } = req.body;
-
-    console.log({
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      email,
-      noteName
-    });
-    
-    console.log("SERVER STARTED");
-console.log("REACHED APP LISTEN");
-process.on("uncaughtException", err => {
-  console.error("UNCAUGHT EXCEPTION:", err);
-});
-
-process.on("unhandledRejection", err => {
-  console.error("UNHANDLED REJECTION:", err);
-});
-// imports
-
-const express = require("express");
-const cors = require("cors");
-
-const app = express();
-const crypto = require("crypto");
-app.use(cors());
-app.use(express.json());
-
-
-
-    // VALIDATION
 
     if (
       !isValidString(razorpay_order_id) ||
@@ -63,7 +61,7 @@ app.use(express.json());
       });
     }
 
-    // VERIFY SIGNATURE
+    console.log("SECRET EXISTS:", !!RAZORPAY_KEY_SECRET);
 
     const generatedSignature = crypto
       .createHmac(
@@ -75,14 +73,22 @@ app.use(express.json());
       )
       .digest("hex");
 
+    console.log(
+      "Generated:",
+      generatedSignature
+    );
+
+    console.log(
+      "Received:",
+      razorpay_signature
+    );
+
     if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({
         success: false,
         error: "Invalid signature"
       });
     }
-
-    // PREVENT DUPLICATE PAYMENT
 
     const paymentRef = db.ref(
       `payments/${razorpay_payment_id}`
@@ -110,8 +116,6 @@ app.use(express.json());
       });
     }
 
-    // SAVE PURCHASE BY EMAIL
-
     const emailKey = email
       .trim()
       .toLowerCase()
@@ -135,13 +139,24 @@ app.use(express.json());
   } catch (err) {
 
     console.error(
-      "Verify error:",
+      "VERIFY PAYMENT ERROR:",
       err
     );
 
     return res.status(500).json({
       success: false,
-      error: "Verification failed"
+      error: err.message
     });
   }
+});
+
+// =======================
+// START SERVER
+// =======================
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("SERVER STARTED");
+  console.log("PORT:", PORT);
 });
