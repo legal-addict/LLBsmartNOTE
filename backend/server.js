@@ -10,7 +10,20 @@ app.use(express.json());
 app.use((req, res, next) => {
   console.log("REQUEST:", req.method, req.url);
   next();
-});// CHECK PURCHASE
+});
+const admin = require("firebase-admin");
+
+const serviceAccount = JSON.parse(
+  process.env.FIREBASE_SERVICE_ACCOUNT
+);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DATABASE_URL
+});
+
+const db = admin.database();
+// CHECK PURCHASE
 // =====================================
 
 app.get("/check-purchase", async (req, res) => {
